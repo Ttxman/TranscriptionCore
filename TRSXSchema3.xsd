@@ -1,0 +1,175 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="TRSXSchema_v3"
+    targetNamespace="http://www.ite.tul.cz/TRSXSchema3.xsd"
+    elementFormDefault="qualified"
+
+    xmlns="http://www.ite.tul.cz/TRSXSchema3.xsd"
+    xmlns:mstns="http://www.ite.tul.cz/TRSXSchema3.xsd"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+<!-- structure
+|- transcription
+|  |- meta
+|  |- chapter
+|  |  |- section
+|  |  |  |- paragraph
+|  |  |  |  |- phrase
+|  |-speakers
+
+Transcription XML structure is designed so you can just grab the inner text of Chapter tags
+to get the transcription text without any other data like chapter headers, speaker names or the timing information.
+
+One day worth of a TV broadcast will be used as an example data to better describe the structure:
+
+Transcription is an organized three layer tree structure.
+The Top layer is composed of Chapters.
+Chapter should be used to separate distinct parts.
+For example: Each chapter could be one TV show or an advertisement between shows.
+
+Chapter is composed of Sections.
+Section should be used to separate Chapter into smaller distinct parts.
+For example:
+  Advertisement block can be split into distinct ads.
+  Advertisements during TV show could be separated into Sections
+  Typical Broadcast news block could be separated into Sections like: "News" "Ads" "Sport" "Ads" "weather"...
+
+Section is composed of Paragraphs.
+Paragraphs are intended to represent one utterance of one speaker.
+For example:
+  During news block, each report by each reporter should be one Paragraph 
+-->
+
+
+  <xs:element name="transcription">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="meta" type="TypeMeta" minOccurs="0" maxOccurs="1"  /> <!-- Custom metadata intended for custom tools. TranscriptionCore preserves this tag -->
+        <xs:element name="ch" type="TypeChapter" minOccurs="0" maxOccurs="unbounded" /> <!-- multiple instances of Chapter -->
+        <xs:element name="sp" type="TypeSpeakers" minOccurs="0"/> <!-- list of speakers -->
+      </xs:sequence>
+      <xs:attribute name="version"  fixed="3.0" use="required"/> <!-- This is third iteration of trsx format -->
+      <xs:attribute name="documentid" type="xs:string" use="optional"/> <!-- optional unique identifier of document -->
+      <xs:attribute name="style" use="prohibited"/>
+      <xs:attribute name="mediauri" use="required" type="xs:anyURI"/> <!-- Path to the file containing audio for this transcription -->
+      <xs:attribute name="created" type="xs:dateTime" use="required"/>
+      <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by Transcription Core -->
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="TypeMeta"> <!-- custom metadata are not processed in any way, so any XML will do -->
+    <xs:sequence>
+      <xs:any minOccurs="0" processContents="skip"/>
+    </xs:sequence>
+    <xs:anyAttribute processContents="skip"/>
+  </xs:complexType>
+
+  <xs:complexType name="TypeChapter">
+    <xs:sequence>
+      <xs:element name="se" type="TypeSection" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" />
+    <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by Transcription Core -->
+  </xs:complexType>
+
+  <xs:complexType name="TypeSection">
+    <xs:sequence>
+      <xs:element name="pa" type="TypeParagraph" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" />
+    <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by Transcription Core -->
+  </xs:complexType>
+
+  <xs:complexType name="TypeParagraph">
+    <xs:sequence>
+      <xs:element name="p" type="TypePhrase" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="b" type="xs:duration" use="required"/> <!-- begining of paragraph relative to the audio in mediaUri -->
+    <xs:attribute name="e" type="xs:duration" use="required"/> <!-- end of paragraph relative to the the audio in mediaUri -->
+    <xs:attribute name="s" type="xs:integer" use="required"/> <!-- ID of speaker from list of speakers in this document -->
+    <xs:attribute name="a" type="xs:string" use="optional"/> <!-- attributes of paragraph separated by '|', used in NanoTrans to annotate "noise", "narrowband" etc. -->
+    <xs:attribute name="l" type="xs:string" use="optional"/> <!-- language of paragraph (specified when it is different than default language of speaker) -->
+    <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by TranscriptionCore -->
+  </xs:complexType>
+
+  <!--
+  Phrase represents the smallest undivisible interval of time and text mapped to it.
+  One phrase is usually one word, but it can be one syllable or one character when needed.
+  (or it can even be empty when needed to anotate something that should not be visible in text, like short noise)
+  -->
+  <xs:complexType name="TypePhrase">
+    <xs:simpleContent>
+      <xs:extension base="xs:string"> <!-- text mapped to the interval given in 'b' and 'e' attribute is content of 'p'hrase tag -->
+        <xs:attribute name="b" type="xs:duration" use="optional"/> <!-- beginning of phrase relative to the audio in mediaURI, should be bounded in parent paragraph -->
+        <xs:attribute name="e" type="xs:duration" use="optional"/> <!-- end of phrase relative to the the audio in mediaURI, should be bounded in parent paragraph -->
+        <xs:attribute name="f" type="xs:string" use="optional"/> <!-- alternative text for phrase - used in NanoTrans to specify phonetic transcription of this word and to annotate type of noise. -->
+        <xs:anyAttribute processContents="skip"/> <!-- Preserved by Transcription Core. Beware that phrases could be merged by edits in NanoTrans and custom attributes will be lost. -->
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- container for list of speakers -->
+  <xs:complexType name="TypeSpeakers">
+    <xs:sequence>
+      <xs:element name="s" type="TypeSpeaker" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+
+    <!--
+    Uri to parent speakers api.
+    Api should provide its own unique ID to identify speakers.
+    Api should be used as centralized database of speakers, but everything is implementation dependent.
+    (The implementation in NanoTrans can be used as reference)
+    -->
+    <xs:attribute name="dbapiurl" type="xs:anyURI" use="optional"/>
+    <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by TranscriptionCore -->
+  </xs:complexType>
+
+  <xs:complexType name="TypeSpeaker">
+    <xs:sequence>
+      <xs:element name="a" minOccurs="0" maxOccurs="unbounded"> <!-- speaker contains simple list of key-value pairs to specify additional information (name attribute, content of tag) -->
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string">
+              <xs:attribute name="name" type="xs:string" use="required"/>
+              <xs:attribute name="date" type="xs:dateTime" use ="optional"/>
+              <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by TranscriptionCore -->
+            </xs:extension>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:int" use="required"/> <!-- id of speaker spcific to this document-->
+    <xs:attribute name="dbid" use="optional"> <!-- global unique id of speaker for given dbapi -->
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:minLength value="1"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <!-- each speaker can originate from:
+    'file' - speaker is specific to current file
+    'user' - speaker originates from local database of user (see implementation in NanoTrans)
+    'api' - speaker originates from given dbapi
+    -->
+    <xs:attribute name="dbtype" use="optional">
+      <xs:simpleType >
+        <xs:restriction base="xs:string">
+          <xs:pattern value="(file|user|api)" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="surname" type="xs:string" use="required"/>
+    <xs:attribute name="firstname" type="xs:string" use="required"/>
+    <xs:attribute name="middlename" type="xs:string" use="optional"/>
+    <xs:attribute name="degreebefore" type="xs:string" use="optional"/>
+    <xs:attribute name="degreeafter" type="xs:string" use="optional"/>
+    <xs:attribute name="synchronized" type="xs:dateTime" use="optional"/>
+    <xs:attribute name="lang" type="xs:string" use="required"/>
+    <xs:attribute name="sex" use="required"> <!-- 'x'other,'f'emale,'m'ale  -->
+      <xs:simpleType >
+        <xs:restriction base="xs:string"><xs:pattern value="(x|f|m)" /></xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:anyAttribute processContents="skip"/> <!-- Any other custom attributes, they will be preserved by TranscriptionCore -->
+  </xs:complexType>
+
+</xs:schema>
