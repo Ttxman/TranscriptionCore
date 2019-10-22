@@ -9,8 +9,6 @@ namespace TranscriptionCore
 {
     public class TranscriptionParagraph : TranscriptionElement
     {
-
-
         public override bool IsParagraph
         {
             get
@@ -22,7 +20,7 @@ namespace TranscriptionCore
         VirtualTypeList<TranscriptionPhrase> _phrases;
         public VirtualTypeList<TranscriptionPhrase> Phrases
         {
-            get 
+            get
             {
                 return _phrases;
             }
@@ -81,11 +79,11 @@ namespace TranscriptionCore
 
         public ParagraphAttributes DataAttributes
         {
-            get 
-            { 
-                return _DataAttributes; 
+            get
+            {
+                return _DataAttributes;
             }
-            set 
+            set
             {
                 var old = _DataAttributes;
                 _DataAttributes = value;
@@ -147,16 +145,16 @@ namespace TranscriptionCore
         private int _internalID = Speaker.DefaultID;
 
         /// <summary>
-        /// Used only for identification when serializing or deserializing, can change unexpectedly
+        /// Used only for speaker identification when serializing or deserializing, can change unexpectedly
         /// </summary>
-        public int InternalID
+        internal int InternalID
         {
             get
             {
                 if (_speaker == null)
                     return _internalID;
                 else
-                    return _speaker.ID;
+                    return _speaker.SerializationID;
             }
             set
             {
@@ -171,7 +169,7 @@ namespace TranscriptionCore
         {
             get
             {
-                return _speaker??Speaker.DefaultSpeaker;
+                return _speaker ?? Speaker.DefaultSpeaker;
             }
             set
             {
@@ -182,7 +180,7 @@ namespace TranscriptionCore
 
                 var old = _speaker;
                 _speaker = value;
-                _internalID = (value!=null)?value.ID:Speaker.DefaultID;
+                _internalID = (value != null) ? value.SerializationID : Speaker.DefaultID;
 
                 OnContentChanged(new ParagraphSpeakerAction(this, this.TranscriptionIndex, this.AbsoluteIndex, old));
             }
@@ -277,8 +275,8 @@ namespace TranscriptionCore
                 throw new ArgumentException("required attribute missing on paragraph (b,e,s)");
 
             Phrases = new VirtualTypeList<TranscriptionPhrase>(this, this._children);
-            _internalID = int.Parse(e.Attribute( "s").Value);
-            AttributeString = (e.Attribute( "a") ?? EmptyAttribute).Value;
+            _internalID = int.Parse(e.Attribute("s").Value);
+            AttributeString = (e.Attribute("a") ?? EmptyAttribute).Value;
 
             Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
@@ -321,10 +319,10 @@ namespace TranscriptionCore
 
 
 
-            
+
             if (Elements.TryGetValue("l", out bfr))
             {
-                if(!string.IsNullOrWhiteSpace(bfr))
+                if (!string.IsNullOrWhiteSpace(bfr))
                     Language = bfr.ToUpper();
             }
 
@@ -339,17 +337,17 @@ namespace TranscriptionCore
         public XElement Serialize()
         {
             XElement elm = new XElement("pa",
-                Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { 
-                    new XAttribute("b", Begin), 
-                    new XAttribute("e", End), 
-                    new XAttribute("a", AttributeString), 
+                Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] {
+                    new XAttribute("b", Begin),
+                    new XAttribute("e", End),
+                    new XAttribute("a", AttributeString),
                     new XAttribute("s", InternalID), //DO NOT use _speakerID,  it is not equivalent
                 }),
                 Phrases.Select(p => p.Serialize())
             );
 
-            if(_lang!=null)
-               elm.Add(new XAttribute("l", Language.ToLower()));
+            if (_lang != null)
+                elm.Add(new XAttribute("l", Language.ToLower()));
 
             return elm;
         }
@@ -391,7 +389,7 @@ namespace TranscriptionCore
         public TranscriptionParagraph(params TranscriptionPhrase[] phrases)
             : this(phrases.AsEnumerable())
         {
-        
+
         }
 
 
@@ -419,17 +417,17 @@ namespace TranscriptionCore
         }
 
         string _lang = null;
-        public string Language 
-        { 
+        public string Language
+        {
             get
             {
-               
+
                 return _lang ?? Speaker.DefaultLang;
             }
             set
             {
                 var oldlang = _lang;
-                _lang = (value != null)?value.ToUpper():null;
+                _lang = (value != null) ? value.ToUpper() : null;
                 OnContentChanged(new ParagraphLanguageAction(this, this.TranscriptionIndex, this.AbsoluteIndex, oldlang));
             }
         }
@@ -444,7 +442,7 @@ namespace TranscriptionCore
             get
             {
                 ValidateIndexOrThrow(index);
-                if(!index.IsPhraseIndex)
+                if (!index.IsPhraseIndex)
                     throw new IndexOutOfRangeException("index");
                 return Phrases[index.PhraseIndex];
             }
@@ -473,7 +471,7 @@ namespace TranscriptionCore
             if (!index.IsPhraseIndex)
                 throw new IndexOutOfRangeException("index");
 
-            Phrases.Insert(index.PhraseIndex,(TranscriptionPhrase)value);
+            Phrases.Insert(index.PhraseIndex, (TranscriptionPhrase)value);
         }
     }
 

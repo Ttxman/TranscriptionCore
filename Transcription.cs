@@ -364,16 +364,16 @@ namespace TranscriptionCore
 
         private void ReindexSpeakers()
         {
-            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.ID != Speaker.DefaultID).Distinct().ToList();
+            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID).Distinct().ToList();
             for (int i = 0; i < speakers.Count; i++)
             {
-                speakers[i].ID = i;
+                speakers[i].SerializationID = i;
             }
         }
 
         private XElement SerializeSpeakers(bool SaveSpeakersDetailed)
         {
-            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.ID != Speaker.DefaultID)
+            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID)
                             .Concat(_speakers.Where(s => s.PinnedToDocument))
                             .Distinct()
                 .ToList();
@@ -921,7 +921,7 @@ namespace TranscriptionCore
                         {
                             case "ID":
 
-                                sp.ID = XmlConvert.ToInt32(reader.ReadElementString("ID"));
+                                sp.SerializationID = XmlConvert.ToInt32(reader.ReadElementString("ID"));
                                 break;
                             case "Surname":
                                 sp.Surname = reader.ReadElementString("Surname");
@@ -995,7 +995,7 @@ namespace TranscriptionCore
         {
             foreach (var par in this.Where(e => e.IsParagraph).Cast<TranscriptionParagraph>())
             {
-                var sp = _speakers.FirstOrDefault(s => s.ID == par.InternalID);
+                var sp = _speakers.FirstOrDefault(s => s.SerializationID == par.InternalID);
                 if (sp != null)
                 {
                     par.Speaker = sp;

@@ -150,7 +150,7 @@ namespace TranscriptionCore
                     var lang = sp.Element("DefaultLang");
 
                     if (id != null)
-                        speaker.ID = XmlConvert.ToInt32(id.Value);
+                        speaker.SerializationID = XmlConvert.ToInt32(id.Value);
                     else
                         continue;
 
@@ -200,7 +200,7 @@ namespace TranscriptionCore
         }
 
         //deserialize speaker database file...          
-        public static SpeakerCollection Deserialize(String filename)
+        public static SpeakerCollection Deserialize(string filename)
         {
             var mysp = new SpeakerCollection();
             Deserialize(filename, mysp);

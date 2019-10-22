@@ -11,25 +11,7 @@ namespace TranscriptionCore
     public class Speaker
     {
         public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
-        public static int speakersIndexCounter = 0;
 
-        private int _ID;
-        private bool _IDFixed = false;
-        public bool IDFixed
-        {
-            get { return _IDFixed; }
-            set
-            {
-                if (value)
-                {
-                    _IDFixed = true;
-                }
-                else if (_IDFixed)
-                {
-
-                }
-            }
-        }
 
 
         private bool _PinnedToDocument = false;
@@ -45,31 +27,14 @@ namespace TranscriptionCore
             }
         }
 
-        public void FixID()
-        {
-            _IDFixed = true;
-        }
 
         /// <summary>
         /// Serialization ID, Changed when Transcription is serialized. For user ID use DBID property
         /// </summary>
-        public int ID
+        internal int SerializationID
         {
-            get { return _ID; }
-            set
-            {
-                if (_IDFixed)
-                {
-
-                    throw new ArgumentException("cannot chabge fixed speaker ID");
-                }
-
-                if (value >= speakersIndexCounter)
-                {
-                    speakersIndexCounter = value + 1;
-                }
-                _ID = value;
-            }
+            get;
+            set;
         }
 
 
@@ -164,8 +129,6 @@ namespace TranscriptionCore
 
         public Speaker()
         {
-
-            _ID = speakersIndexCounter++;
             FirstName = null;
             Surname = null;
             Sex = Sexes.X;
@@ -186,7 +149,7 @@ namespace TranscriptionCore
             if (!s.CheckRequiredAtributes("id", "surname"))
                 throw new ArgumentException("required attribute missing on v2format speaker  (id, surname)");
 
-            sp._ID = int.Parse(s.Attribute("id").Value);
+            sp.SerializationID = int.Parse(s.Attribute("id").Value);
             sp.Surname = s.Attribute("surname").Value;
             sp.FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
@@ -233,7 +196,7 @@ namespace TranscriptionCore
             if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
                 throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
 
-            _ID = int.Parse(s.Attribute("id").Value);
+            SerializationID = int.Parse(s.Attribute("id").Value);
             Surname = s.Attribute("surname").Value;
             FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
@@ -350,7 +313,7 @@ namespace TranscriptionCore
                 Elements.Select(e =>
                     new XAttribute(e.Key, e.Value))
                     .Union(new[]{ 
-                    new XAttribute("id", _ID.ToString()),
+                    new XAttribute("id", SerializationID.ToString()),
                     new XAttribute("surname",Surname),
                     new XAttribute("firstname",FirstName),
                     new XAttribute("sex",(Sex==Sexes.Male)?"m":(Sex==Sexes.Female)?"f":"x"),
@@ -406,7 +369,6 @@ namespace TranscriptionCore
         /// <param name="from"></param>
         public static void MergeFrom(Speaker into, Speaker from)
         {
-            into._ID = speakersIndexCounter++;
             into.DataBaseType = from.DataBaseType;
             into.Surname = from.Surname;
             into.FirstName = from.FirstName;
@@ -454,7 +416,6 @@ namespace TranscriptionCore
 
         public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
         {
-            _ID = speakersIndexCounter++;
             FirstName = aSpeakerFirstname;
             Surname = aSpeakerSurname;
             Sex = aPohlavi;
@@ -468,7 +429,7 @@ namespace TranscriptionCore
         }
 
         public static readonly int DefaultID = int.MinValue;
-        public static readonly Speaker DefaultSpeaker = new Speaker() { _ID = DefaultID, DBID = new Guid().ToString() };
+        public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
 
         /// <summary>
         /// copies all info, and generates new DBI and ID .... (deep copy)
