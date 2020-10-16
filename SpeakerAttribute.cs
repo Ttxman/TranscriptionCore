@@ -29,19 +29,22 @@ namespace TranscriptionCore
         {
             this.Name = elm.Attribute("name").Value;
 
-            DateTime date;
-            try
+            DateTime date = default;
+
+            if (elm.Attribute("date") != null)
             {
-                date = XmlConvert.ToDateTime(elm.Attribute("date").Value, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
+                try
+                {
+                    date = XmlConvert.ToDateTime(elm.Attribute("date").Value, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
+                }
+                catch
+                {
+                    if (DateTime.TryParse(elm.Attribute("date").Value, CultureInfo.CreateSpecificCulture("cs"), DateTimeStyles.None, out date))
+                        date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
+                    else
+                        date = DateTime.Now;
+                }
             }
-            catch
-            {
-                if (DateTime.TryParse(elm.Attribute("date").Value, CultureInfo.CreateSpecificCulture("cs"), DateTimeStyles.None, out date))
-                    date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
-                else
-                    date = DateTime.Now;
-            }
-            
             this.Date = date;
             this.Value = elm.Value;
         }
@@ -58,8 +61,8 @@ namespace TranscriptionCore
         public XElement Serialize()
         {
             return new XElement("a",
-                new XAttribute("name",Name),
-                new XAttribute("date",XmlConvert.ToString(Date, XmlDateTimeSerializationMode.Utc)),
+                new XAttribute("name", Name),
+                new XAttribute("date", XmlConvert.ToString(Date, XmlDateTimeSerializationMode.Utc)),
                 Value
                 );
         }
