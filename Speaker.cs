@@ -168,8 +168,7 @@ namespace TranscriptionCore
 
             sp.Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
-            string rem;
-            if (sp.Elements.TryGetValue("comment", out rem))
+            if (sp.Elements.TryGetValue("comment", out string rem))
             {
                 SpeakerAttribute sa = new SpeakerAttribute("comment", "comment", rem);
                 sp.Attributes.Add(sa);
@@ -223,8 +222,7 @@ namespace TranscriptionCore
             Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
 
-            string rem;
-            if (Elements.TryGetValue("dbid", out rem))
+            if (Elements.TryGetValue("dbid", out string rem))
             {
                 DBID = rem;
                 if (Elements.TryGetValue("dbtype", out rem))

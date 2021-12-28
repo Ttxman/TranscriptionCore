@@ -68,8 +68,7 @@ namespace TranscriptionCore
             if (e.Attribute(isStrict ? "begin" : "b") != null)
             {
                 string val = e.Attribute(isStrict ? "begin" : "b").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
+                if (int.TryParse(val, out int ms))
                     phr.Begin = TimeSpan.FromMilliseconds(ms);
                 else
                     phr.Begin = XmlConvert.ToTimeSpan(val);
@@ -79,8 +78,7 @@ namespace TranscriptionCore
             if (e.Attribute(isStrict ? "end" : "e") != null)
             {
                 string val = e.Attribute(isStrict ? "end" : "e").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
+                if (int.TryParse(val, out int ms))
                     phr.End = TimeSpan.FromMilliseconds(ms);
                 else
                     phr.End = XmlConvert.ToTimeSpan(val);
@@ -106,8 +104,7 @@ namespace TranscriptionCore
             if (e.Attribute("b") != null)
             {
                 string val = e.Attribute("b").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
+                if (int.TryParse(val, out int ms))
                 {
                     Begin = TimeSpan.FromMilliseconds(ms);
                 }
@@ -119,8 +116,7 @@ namespace TranscriptionCore
             if (e.Attribute("e") != null)
             {
                 string val = e.Attribute("e").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
+                if (int.TryParse(val, out int ms))
                 {
                     End = TimeSpan.FromMilliseconds(ms);
                 }

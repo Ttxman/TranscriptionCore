@@ -507,8 +507,7 @@ namespace TranscriptionCore
 
 
             data.Elements = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            string did;
-            if (data.Elements.TryGetValue("documentid", out did))
+            if (data.Elements.TryGetValue("documentid", out string did))
                 data.DocumentID = did;
             if (data.Elements.TryGetValue("created", out did))
                 data.Created = XmlConvert.ToDateTime(did, XmlDateTimeSerializationMode.Unspecified);
@@ -551,7 +550,6 @@ namespace TranscriptionCore
 
                 reader.ReadStartElement("Transcription");
 
-                int result;
 
                 //reader.Read();
                 reader.ReadStartElement("Chapters");
@@ -562,7 +560,7 @@ namespace TranscriptionCore
                     c.Name = reader.GetAttribute("name");
 
                     val = reader.GetAttribute("begin");
-                    if (int.TryParse(val, out result))
+                    if (int.TryParse(val, out int result))
                         if (result < 0)
                             c.Begin = new TimeSpan(result);
                         else

@@ -180,11 +180,11 @@ namespace TranscriptionCore
                         speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
 
 
-                    int vvvv;
-                    if (int.TryParse(lang.Value, out vvvv) && vvvv < Speaker.Langs.Count)
+                    if (int.TryParse(lang.Value, out int vvvv) && vvvv < Speaker.Langs.Count)
                     {
                         speaker.DefaultLang = Speaker.Langs[vvvv];
-                    }else
+                    }
+                    else
                     {
                         speaker.DefaultLang = lang.Value ?? Speaker.Langs[0];
                     }
