@@ -509,8 +509,7 @@ namespace TranscriptionCore
         {
             if (_Updating <= 0)
             {
-                if (_ContentChanged != null)
-                    _ContentChanged(this, new TranscriptionElementChangedEventArgs(actions));
+                _ContentChanged?.Invoke(this, new TranscriptionElementChangedEventArgs(actions));
 
                 if (Parent != null)
                     Parent.OnContentChanged(actions);
