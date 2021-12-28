@@ -7,25 +7,25 @@ namespace TranscriptionCore
 {
     public struct TranscriptionIndex
     {
-        private int _chapterindex;
+        private readonly int _chapterindex;
 
         public int Chapterindex
         {
             get { return _chapterindex; }
         }
-        private int _sectionindex;
+        private readonly int _sectionindex;
 
         public int Sectionindex
         {
             get { return _sectionindex; }
         }
-        private int _paragraphIndex;
+        private readonly int _paragraphIndex;
 
         public int ParagraphIndex
         {
             get { return _paragraphIndex; }
         }
-        private int _phraseIndex;
+        private readonly int _phraseIndex;
 
         public int PhraseIndex
         {

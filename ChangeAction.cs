@@ -11,48 +11,32 @@ namespace TranscriptionCore
     /// </summary>
     public abstract class ChangeAction
     {
-        private ChangeType _changeType;
-        public ChangeType ChangeType
-        {
-            get { return _changeType; }
-        }
+        public ChangeType ChangeType { get; }
 
-        private TranscriptionElement _changedElement;
+        public TranscriptionElement ChangedElement { get; }
 
-        public TranscriptionElement ChangedElement
-        {
-            get { return _changedElement; }
-        }
-
-        private TranscriptionIndex _changeTranscriptionIndex;
-
-        public TranscriptionIndex ChangeTranscriptionIndex
-        {
-            get { return _changeTranscriptionIndex; }
-            set { _changeTranscriptionIndex = value; }
-        }
+        public TranscriptionIndex ChangeTranscriptionIndex { get; }
 
         public ChangeAction(ChangeType changeType, TranscriptionElement changedElement, TranscriptionIndex changeIndex, int changeAbsoluteIndex)
         {
-            _changeType = changeType;
-            _changedElement = changedElement;
-            _changeTranscriptionIndex = changeIndex;
-            _changeAbsoluteIndex = changeAbsoluteIndex;
+            ChangeType = changeType;
+            ChangedElement = changedElement;
+            ChangeTranscriptionIndex = changeIndex;
+            ChangeAbsoluteIndex = changeAbsoluteIndex;
         }
 
         public abstract void Revert(Transcription trans);
-        int _changeAbsoluteIndex = -1;
-        public int ChangeAbsoluteIndex { get { return _changeAbsoluteIndex; } }
+        public int ChangeAbsoluteIndex { get; }
     }
 
 
-    public class InsertAction:ChangeAction
+    public class InsertAction : ChangeAction
     {
 
         public InsertAction(TranscriptionElement changedElement, TranscriptionIndex changeIndex, int changeAbsoluteIndex)
             : base(ChangeType.Add, changedElement, changeIndex, changeAbsoluteIndex)
         {
-        
+
         }
 
         public override void Revert(Transcription trans)
@@ -96,17 +80,12 @@ namespace TranscriptionCore
 
     public class ParagraphSpeakerAction : ChangeAction
     {
-        Speaker _oldSpeaker;
+        public Speaker OldSpeaker { get; }
 
-        public Speaker OldSpeaker
-        {
-            get { return _oldSpeaker; }
-        }
-
-        public ParagraphSpeakerAction(TranscriptionParagraph changedParagraph, TranscriptionIndex changeIndex,int changeAbsoluteIndex, Speaker oldSpeaker)
+        public ParagraphSpeakerAction(TranscriptionParagraph changedParagraph, TranscriptionIndex changeIndex, int changeAbsoluteIndex, Speaker oldSpeaker)
             : base(ChangeType.Modify, changedParagraph, changeIndex, changeAbsoluteIndex)
         {
-            _oldSpeaker = oldSpeaker;
+            OldSpeaker = oldSpeaker;
         }
 
         public override void Revert(Transcription trans)
@@ -118,10 +97,10 @@ namespace TranscriptionCore
 
     public class ParagraphAttibutesAction : ChangeAction
     {
-        public ParagraphAttibutesAction(TranscriptionParagraph changedParagraph, TranscriptionIndex changeIndex,int changeAbsoluteIndex, ParagraphAttributes oldAttributes)
+        public ParagraphAttibutesAction(TranscriptionParagraph changedParagraph, TranscriptionIndex changeIndex, int changeAbsoluteIndex, ParagraphAttributes oldAttributes)
             : base(ChangeType.Modify, changedParagraph, changeIndex, changeAbsoluteIndex)
         {
-            _oldAttributes = oldAttributes;
+            OldAttributes = oldAttributes;
         }
 
         public override void Revert(Transcription trans)
@@ -129,12 +108,7 @@ namespace TranscriptionCore
             ((TranscriptionParagraph)trans[ChangeTranscriptionIndex]).DataAttributes = OldAttributes;
         }
 
-        ParagraphAttributes _oldAttributes;
-
-        public ParagraphAttributes OldAttributes
-        {
-            get { return _oldAttributes; }
-        }
+        public ParagraphAttributes OldAttributes { get; }
     }
 
     public class ParagraphLanguageAction : ChangeAction
@@ -142,29 +116,23 @@ namespace TranscriptionCore
         public ParagraphLanguageAction(TranscriptionParagraph changedParagraph, TranscriptionIndex changeIndex, int changeAbsoluteIndex, string oldLanguage)
             : base(ChangeType.Modify, changedParagraph, changeIndex, changeAbsoluteIndex)
         {
-            _oldLanguage = oldLanguage;
+            OldLanguage = oldLanguage;
         }
 
         public override void Revert(Transcription trans)
         {
             ((TranscriptionParagraph)trans[ChangeTranscriptionIndex]).Language = OldLanguage;
         }
-
-        string _oldLanguage;
-
-        public string OldLanguage
-        {
-            get { return _oldLanguage; }
-        }
+        public string OldLanguage { get; }
     }
 
 
     public class BeginAction : ChangeAction
     {
         public BeginAction(TranscriptionElement changedElement, TranscriptionIndex changeIndex, int changeAbsoluteIndex, TimeSpan oldtime)
-            : base(ChangeType.Modify, changedElement, changeIndex,changeAbsoluteIndex)
+            : base(ChangeType.Modify, changedElement, changeIndex, changeAbsoluteIndex)
         {
-            _oldtime = oldtime;
+            Oldtime = oldtime;
         }
 
         public override void Revert(Transcription trans)
@@ -172,12 +140,7 @@ namespace TranscriptionCore
             trans[ChangeTranscriptionIndex].Begin = Oldtime;
         }
 
-        TimeSpan _oldtime;
-
-        public TimeSpan Oldtime
-        {
-            get { return _oldtime; }
-        }
+        public TimeSpan Oldtime { get; }
     }
 
 
@@ -186,20 +149,14 @@ namespace TranscriptionCore
         public EndAction(TranscriptionElement changedelement, TranscriptionIndex changeIndex, int changeAbsoluteIndex, TimeSpan oldtime)
             : base(ChangeType.Modify, changedelement, changeIndex, changeAbsoluteIndex)
         {
-            _oldtime = oldtime;
+            Oldtime = oldtime;
         }
 
         public override void Revert(Transcription trans)
         {
             trans[ChangeTranscriptionIndex].End = Oldtime;
         }
-
-        TimeSpan _oldtime;
-
-        public TimeSpan Oldtime
-        {
-            get { return _oldtime; }
-        }
+        public TimeSpan Oldtime { get; }
     }
 
 
@@ -208,20 +165,15 @@ namespace TranscriptionCore
         public TextAction(TranscriptionElement changedelement, TranscriptionIndex changeIndex, int changeAbsoluteIndex, string oldtstring)
             : base(ChangeType.Modify, changedelement, changeIndex, changeAbsoluteIndex)
         {
-            _oldtstring = oldtstring;
+            Oldtstring = oldtstring;
         }
 
         public override void Revert(Transcription trans)
         {
-            trans[ChangeTranscriptionIndex].Text = _oldtstring;
+            trans[ChangeTranscriptionIndex].Text = Oldtstring;
         }
 
-        string _oldtstring;
-
-        public string Oldtstringe
-        {
-            get { return _oldtstring; }
-        }
+        public string Oldtstring { get; }
     }
 
 
@@ -230,20 +182,16 @@ namespace TranscriptionCore
         public PhrasePhoneticsAction(TranscriptionPhrase changedelement, TranscriptionIndex changeIndex, int changeAbsoluteIndex, string oldphonetics)
             : base(ChangeType.Modify, changedelement, changeIndex, changeAbsoluteIndex)
         {
-            _oldtstring = oldphonetics;
+            Oldtstring = oldphonetics;
         }
 
         public override void Revert(Transcription trans)
         {
-            trans[ChangeTranscriptionIndex].Phonetics = _oldtstring;
+            trans[ChangeTranscriptionIndex].Phonetics = Oldtstring;
         }
 
-        string _oldtstring;
 
-        public string Oldtstringe
-        {
-            get { return _oldtstring; }
-        }
+        public string Oldtstring { get; }
     }
 
 
@@ -251,7 +199,7 @@ namespace TranscriptionCore
     /// <summary>
     /// Used for compatibility with collection changes in wpf
     /// </summary>
-    public enum ChangeType: uint
+    public enum ChangeType : uint
     {
         Add,
         Remove,

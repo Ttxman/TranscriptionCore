@@ -12,8 +12,8 @@ namespace TranscriptionCore
     /// <typeparam name="T"></typeparam>
     public class VirtualTypeList<T> : IList<T> where T : TranscriptionElement
     {
-        IList<TranscriptionElement> _elementlist;
-        TranscriptionElement _parent;
+        readonly IList<TranscriptionElement> _elementlist;
+        readonly TranscriptionElement _parent;
         public VirtualTypeList(TranscriptionElement parent, List<TranscriptionElement> list)
         {
             if (parent == null)
@@ -124,7 +124,7 @@ namespace TranscriptionCore
 
         class VirtualEnumerator<R> : IEnumerator<R> where R : TranscriptionElement
         {
-            IEnumerator<TranscriptionElement> tre;
+            readonly IEnumerator<TranscriptionElement> tre;
             public VirtualEnumerator(IList<TranscriptionElement> list)
             {
                 tre = list.GetEnumerator();

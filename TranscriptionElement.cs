@@ -183,7 +183,7 @@ namespace TranscriptionCore
         protected readonly List<TranscriptionElement> _children = new List<TranscriptionElement>();
 
 
-        private VirtualTypeList<TranscriptionElement> _vChildren;
+        private readonly VirtualTypeList<TranscriptionElement> _vChildren;
         public VirtualTypeList<TranscriptionElement> Children
         {
             get { return _vChildren; }
