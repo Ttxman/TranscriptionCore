@@ -110,7 +110,7 @@ namespace TranscriptionCore
             this.Begin = toCopy.Begin;
             this.End = toCopy.End;
             this.Name = toCopy.Name;
-            if (toCopy.Sections != null)
+            if (toCopy.Sections is { })
             {
                 this.Sections = new VirtualTypeList<TranscriptionSection>(this, this._children);
                 for (int i = 0; i < toCopy.Sections.Count; i++)
@@ -123,7 +123,7 @@ namespace TranscriptionCore
         public TranscriptionChapter()
             : base()
         {
-            Sections = new VirtualTypeList<TranscriptionSection>(this,this._children);
+            Sections = new VirtualTypeList<TranscriptionSection>(this, this._children);
             Begin = new TimeSpan(-1);
             End = new TimeSpan(-1);
         }
@@ -147,7 +147,7 @@ namespace TranscriptionCore
             get
             {
 
-                if (_Parent != null)
+                if (_Parent is { })
                 {
                     int sum = 0; //transcription (parent) is root element
                     sum += _Parent.Children.Take(this.ParentIndex) //take previous siblings
@@ -184,7 +184,7 @@ namespace TranscriptionCore
 
                     return Sections[index.Sectionindex];
                 }
-                
+
                 throw new IndexOutOfRangeException("index");
             }
             set
@@ -228,7 +228,7 @@ namespace TranscriptionCore
                 if (index.IsParagraphIndex)
                     Sections[index.Sectionindex].Insert(index, value);
                 else
-                    Sections.Insert(index.Sectionindex,(TranscriptionSection)value);
+                    Sections.Insert(index.Sectionindex, (TranscriptionSection)value);
             }
             else
             {

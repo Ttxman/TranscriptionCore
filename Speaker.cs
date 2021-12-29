@@ -41,16 +41,16 @@ namespace TranscriptionCore
         public static string GetFullName(string FirstName, string MiddleName, string Surname)
         {
             string pJmeno = "";
-            if (FirstName != null && FirstName.Length > 0)
+            if (FirstName is { } && FirstName.Length > 0)
             {
                 pJmeno += FirstName.Trim();
             }
-            if (MiddleName != null && MiddleName.Length > 0)
+            if (MiddleName is { } && MiddleName.Length > 0)
             {
                 pJmeno += " " + MiddleName.Trim();
             }
 
-            if (Surname != null && Surname.Length > 0)
+            if (Surname is { } && Surname.Length > 0)
             {
                 if (pJmeno.Length > 0) pJmeno += " ";
                 pJmeno += Surname.Trim();

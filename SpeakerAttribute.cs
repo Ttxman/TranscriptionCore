@@ -31,15 +31,15 @@ namespace TranscriptionCore
 
             DateTime date = default;
 
-            if (elm.Attribute("date") != null)
+            if (elm.Attribute("date")?.Value is { } sdate)
             {
                 try
                 {
-                    date = XmlConvert.ToDateTime(elm.Attribute("date").Value, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
+                    date = XmlConvert.ToDateTime(sdate, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
                 }
                 catch
                 {
-                    if (DateTime.TryParse(elm.Attribute("date").Value, CultureInfo.CreateSpecificCulture("cs"), DateTimeStyles.None, out date))
+                    if (DateTime.TryParse(sdate, CultureInfo.CreateSpecificCulture("cs"), DateTimeStyles.None, out date))
                         date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
                     else
                         date = DateTime.Now;

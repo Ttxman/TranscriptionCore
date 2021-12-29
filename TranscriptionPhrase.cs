@@ -19,7 +19,7 @@ namespace TranscriptionCore
         public override string Text
         {
             get { return _text; }
-            set 
+            set
             {
                 var oldv = _text;
                 _text = value;
@@ -65,23 +65,21 @@ namespace TranscriptionCore
 
             phr._phonetics = (e.Attribute(isStrict ? "fon" : "f") ?? EmptyAttribute).Value;
             phr._text = e.Value.Trim('\r', '\n');
-            if (e.Attribute(isStrict ? "begin" : "b") != null)
+            if (e.Attribute(isStrict ? "begin" : "b")?.Value is { } bval)
             {
-                string val = e.Attribute(isStrict ? "begin" : "b").Value;
-                if (int.TryParse(val, out int ms))
+                if (int.TryParse(bval, out int ms))
                     phr.Begin = TimeSpan.FromMilliseconds(ms);
                 else
-                    phr.Begin = XmlConvert.ToTimeSpan(val);
+                    phr.Begin = XmlConvert.ToTimeSpan(bval);
 
             }
 
-            if (e.Attribute(isStrict ? "end" : "e") != null)
+            if (e.Attribute(isStrict ? "end" : "e")?.Value is { } eval)
             {
-                string val = e.Attribute(isStrict ? "end" : "e").Value;
-                if (int.TryParse(val, out int ms))
+                if (int.TryParse(eval, out int ms))
                     phr.End = TimeSpan.FromMilliseconds(ms);
                 else
-                    phr.End = XmlConvert.ToTimeSpan(val);
+                    phr.End = XmlConvert.ToTimeSpan(eval);
             }
 
             return phr;
@@ -101,27 +99,21 @@ namespace TranscriptionCore
 
             this._phonetics = (e.Attribute("f") ?? EmptyAttribute).Value;
             this._text = e.Value.Trim('\r', '\n');
-            if (e.Attribute("b") != null)
+            if (e.Attribute("b")?.Value is { } bval)
             {
-                string val = e.Attribute("b").Value;
-                if (int.TryParse(val, out int ms))
-                {
+                if (int.TryParse(bval, out int ms))
                     Begin = TimeSpan.FromMilliseconds(ms);
-                }
                 else
-                    Begin = XmlConvert.ToTimeSpan(val);
+                    Begin = XmlConvert.ToTimeSpan(bval);
 
             }
 
-            if (e.Attribute("e") != null)
+            if (e.Attribute("e")?.Value is { } eval)
             {
-                string val = e.Attribute("e").Value;
-                if (int.TryParse(val, out int ms))
-                {
+                if (int.TryParse(eval, out int ms))
                     End = TimeSpan.FromMilliseconds(ms);
-                }
                 else
-                    End = XmlConvert.ToTimeSpan(val);
+                    End = XmlConvert.ToTimeSpan(eval);
             }
         }
 
@@ -131,7 +123,7 @@ namespace TranscriptionCore
             XElement elm = new XElement("p",
                 Elements.Select(e =>
                     new XAttribute(e.Key, e.Value))
-                    .Union(new[]{ 
+                    .Union(new[]{
                     new XAttribute("b", Begin),
                     new XAttribute("e", End),
                     new XAttribute("f", _phonetics),
@@ -179,7 +171,7 @@ namespace TranscriptionCore
 
         public override int AbsoluteIndex
         {
-            get 
+            get
             {
                 return -1;
             }

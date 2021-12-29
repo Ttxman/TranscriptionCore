@@ -18,25 +18,20 @@ namespace TranscriptionCore
         public double TotalHeigth;
         public bool FindNext(ref TranscriptionElement paragraph, ref int TextOffset, out int length, string pattern, bool isregex, bool CaseSensitive, bool searchinspeakers)
         {
-            TranscriptionElement par = paragraph;
             length = 0;
-            if (par == null)
+            if (paragraph is null)
                 return false;
 
             if (searchinspeakers)
             {
-                TranscriptionElement prs = paragraph.Next();
-
-                while (prs != null)
+                foreach(TranscriptionParagraph pr in paragraph.EnumerateNextSiblings())
                 {
-                    TranscriptionParagraph pr = prs as TranscriptionParagraph;
-                    if (pr != null && pr.Speaker.FullName.ToLower().Contains(pattern.ToLower()))
+                    if (pr.Speaker.FullName.ToLower().Contains(pattern.ToLower()))
                     {
                         paragraph = pr;
                         TextOffset = 0;
                         return true;
                     }
-                    prs = prs.Next();
                 }
                 return false;
             }
@@ -53,8 +48,8 @@ namespace TranscriptionCore
                 r = new Regex(Regex.Escape(pattern));
             }
 
-            TranscriptionElement tag = paragraph;
-            while (par != null)
+            var par = paragraph;
+            while (par is { })
             {
                 string s = par.Text;
                 if (!CaseSensitive && !isregex)
@@ -67,14 +62,13 @@ namespace TranscriptionCore
                 {
                     TextOffset = m.Index;
                     length = m.Length;
-                    paragraph = tag;
+                    paragraph = par;
                     return true;
                 }
 
-                tag = tag.Next();
-                if (tag == null)
+                par = par.Next();
+                if (par is null)
                     return false;
-                par = tag;
                 TextOffset = 0;
             }
 
@@ -116,7 +110,7 @@ namespace TranscriptionCore
         /// </summary>
         public string VideoFileName { get; set; }
 
-        
+
 
 
         private VirtualTypeList<TranscriptionChapter> _Chapters;
@@ -147,7 +141,7 @@ namespace TranscriptionCore
             FileName = null;
             Saved = false;
             DocumentID = Guid.NewGuid().ToString();
-            Chapters = new VirtualTypeList<TranscriptionChapter>(this,this._children);
+            Chapters = new VirtualTypeList<TranscriptionChapter>(this, this._children);
             Created = DateTime.UtcNow;
             //constructor  
         }
@@ -166,7 +160,7 @@ namespace TranscriptionCore
             this.VideoFileName = toCopy.VideoFileName;
             this.Type = toCopy.Type;
             this.Created = toCopy.Created;
-            if (toCopy.Chapters != null)
+            if (toCopy.Chapters is { })
             {
                 this.Chapters = new VirtualTypeList<TranscriptionChapter>(this, this._children);
                 for (int i = 0; i < toCopy.Chapters.Count; i++)
@@ -261,7 +255,7 @@ namespace TranscriptionCore
         {
             try
             {
-                if (speaker.FullName != null && speaker.FullName != "")
+                if (!string.IsNullOrEmpty(speaker.FullName))
                 {
                     if (this._speakers.Contains(speaker))
                     {
@@ -332,8 +326,8 @@ namespace TranscriptionCore
         public XDocument Serialize(bool SaveSpeakersDetailed = false)
         {
             ReindexSpeakers();
-            XElement pars = new XElement("transcription", Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { 
-                        new XAttribute("version", "3.0"), 
+            XElement pars = new XElement("transcription", Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] {
+                        new XAttribute("version", "3.0"),
                         new XAttribute("mediauri", MediaURI ?? ""),
                         new XAttribute("created",Created)
                         }),
@@ -394,7 +388,7 @@ namespace TranscriptionCore
             using (Stream s = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 Deserialize(s, storage);
-                if (storage != null)
+                if (storage is { })
                 {
                     storage.FileName = filename;
                     storage.Saved = true;
@@ -410,7 +404,7 @@ namespace TranscriptionCore
             return tr;
         }
 
-           
+
         public static void Deserialize(Stream datastream, Transcription storage)
         {
             storage.BeginUpdate(false);
@@ -465,9 +459,8 @@ namespace TranscriptionCore
             string version = transcription.Attribute("version").Value;
             string mediaURI = transcription.Attribute("mediaURI").Value;
             data.MediaURI = mediaURI;
-            data.Meta = transcription.Element("meta");
-            if(data.Meta == null)
-                data.Meta = EmptyMeta();
+            data.Meta = transcription.Element("meta") ?? EmptyMeta();
+
             var chapters = transcription.Elements(isStrict ? "chapter" : "ch");
 
             data.Elements = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
@@ -500,9 +493,7 @@ namespace TranscriptionCore
             string version = transcription.Attribute("version").Value;
             string mediaURI = transcription.Attribute("mediauri").Value;
             data.MediaURI = mediaURI;
-            data.Meta = transcription.Element("meta");
-            if(data.Meta == null)
-                data.Meta = EmptyMeta();
+            data.Meta = transcription.Element("meta") ?? EmptyMeta();
             var chapters = transcription.Elements("ch");
 
 
@@ -545,7 +536,7 @@ namespace TranscriptionCore
                 reader.Read();
                 data.MediaURI = reader.GetAttribute("audioFileName");
                 string val = reader.GetAttribute("dateTime");
-                if (val != null)
+                if (val is { })
                     data.Created = XmlConvert.ToDateTime(val, XmlDateTimeSerializationMode.Local);
 
                 reader.ReadStartElement("Transcription");
@@ -633,8 +624,7 @@ namespace TranscriptionCore
                             else
                                 p.End = XmlConvert.ToTimeSpan(val);
 
-                            val = reader.GetAttribute("trainingElement");
-                            p.trainingElement = val == null ? false : XmlConvert.ToBoolean(val);
+                            p.trainingElement = reader.GetAttribute("trainingElement") is { } vl && XmlConvert.ToBoolean(vl);
                             p.AttributeString = reader.GetAttribute("Attributes");
 
                             reader.Read();
@@ -832,7 +822,7 @@ namespace TranscriptionCore
 
 
 
-                                if (bestpar == null)
+                                if (bestpar is null)
                                 {
                                     bestpar = v;
                                     timeinboth = duration;
@@ -847,7 +837,7 @@ namespace TranscriptionCore
                                 }
                             }
 
-                            if (bestpar != null)
+                            if (bestpar is { })
                             {
                                 if (p.Phrases.Count == bestpar.Phrases.Count)
                                 {
@@ -978,7 +968,7 @@ namespace TranscriptionCore
             }
             catch (Exception ex)
             {
-                if (reader != null)
+                if (reader is { })
                     throw new TranscriptionSerializationException(string.Format("Deserialization error:(line:{0}, offset:{1}) {2}", reader.LineNumber, reader.LinePosition, ex.Message), ex);
                 else
                     throw new TranscriptionSerializationException("Deserialization error: " + ex.Message, ex);
@@ -994,7 +984,7 @@ namespace TranscriptionCore
             foreach (var par in this.Where(e => e.IsParagraph).Cast<TranscriptionParagraph>())
             {
                 var sp = _speakers.FirstOrDefault(s => s.SerializationID == par.InternalID);
-                if (sp != null)
+                if (sp is { })
                 {
                     par.Speaker = sp;
                 }
@@ -1031,7 +1021,7 @@ namespace TranscriptionCore
                 return -1;
 
             TranscriptionElement cur = Chapters[0];
-            while (cur != null && cur != item)
+            while (cur is { } && cur != item)
             {
                 i++;
                 cur = cur.NextSibling();
@@ -1106,7 +1096,7 @@ namespace TranscriptionCore
                 if (index.IsSectionIndex)
                     Chapters[index.Chapterindex].Insert(index, value);
                 else
-                    Chapters.Insert(index.Chapterindex,(TranscriptionChapter)value);
+                    Chapters.Insert(index.Chapterindex, (TranscriptionChapter)value);
             }
             else
             {
@@ -1158,7 +1148,7 @@ namespace TranscriptionCore
 
         public override void Add(TranscriptionElement item)
         {
-           
+
             if (item is TranscriptionChapter)
             {
                 base.Add(item);

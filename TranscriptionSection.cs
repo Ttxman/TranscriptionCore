@@ -36,12 +36,12 @@ namespace TranscriptionCore
         public string Name
         {
             get
-            { 
-                return Text; 
+            {
+                return Text;
             }
-            set 
-            { 
-                Text = value; 
+            set
+            {
+                Text = value;
             }
         }
 
@@ -109,7 +109,7 @@ namespace TranscriptionCore
             this.Begin = toCopy.Begin;
             this.End = toCopy.End;
             this.Name = toCopy.Name;
-            if (toCopy.Paragraphs != null)
+            if (toCopy.Paragraphs is { })
             {
                 this.Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
                 for (int i = 0; i < toCopy.Paragraphs.Count; i++)
@@ -121,7 +121,7 @@ namespace TranscriptionCore
 
         public TranscriptionSection()
         {
-            Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this,this._children);
+            Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
             Begin = new TimeSpan(-1);
             End = new TimeSpan(-1);
         }
@@ -148,7 +148,7 @@ namespace TranscriptionCore
             get
             {
 
-                if (_Parent != null)
+                if (_Parent is { })
                 {
 
                     int sum = _Parent.AbsoluteIndex;//parent absolute index index
@@ -234,9 +234,9 @@ namespace TranscriptionCore
             if (index.IsParagraphIndex)
             {
                 if (index.IsPhraseIndex)
-                    Paragraphs[index.ParagraphIndex].Insert(index,value);
+                    Paragraphs[index.ParagraphIndex].Insert(index, value);
                 else
-                    Paragraphs.Insert(index.ParagraphIndex,(TranscriptionParagraph)value);
+                    Paragraphs.Insert(index.ParagraphIndex, (TranscriptionParagraph)value);
             }
             else
             {

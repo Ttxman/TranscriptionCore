@@ -20,18 +20,18 @@ namespace TranscriptionCore
             {
                 if (_begin == new TimeSpan(-1))
                 {
-                    if (_Parent != null && _ParentIndex == 0)
+                    if (_Parent is { } && _ParentIndex == 0)
                     {
                         if (_Parent.Begin != new TimeSpan(-1))
                             return _Parent.Begin;
                     }
 
                     TranscriptionElement elm = this.Previous();
-                    while (elm != null && elm._end == new TimeSpan(-1))
+                    while (elm is { } && elm._end == new TimeSpan(-1))
                     {
                         elm = elm.Previous();
                     }
-                    if (elm != null)
+                    if (elm is { })
                         return elm.End;
                     else
                         return TimeSpan.Zero;
@@ -54,7 +54,7 @@ namespace TranscriptionCore
                 if (_end == new TimeSpan(-1))
                 {
 
-                    if (_Parent != null && _ParentIndex == _Parent.Children.Count - 1)
+                    if (_Parent is { } && _ParentIndex == _Parent.Children.Count - 1)
                     {
                         if (_Parent.End != new TimeSpan(-1))
                             return _Parent.End;
@@ -62,11 +62,11 @@ namespace TranscriptionCore
 
 
                     TranscriptionElement elm = this.Next();
-                    while (elm != null && elm._begin == new TimeSpan(-1))
+                    while (elm is { } && elm._begin == new TimeSpan(-1))
                     {
                         elm = elm.Next();
                     }
-                    if (elm != null)
+                    if (elm is { })
                         return elm.Begin;
                 }
 
@@ -210,11 +210,11 @@ namespace TranscriptionCore
         {
             get
             {
-                if (this.Parent == null && !(this is Transcription))
+                if (this.Parent is null && this is not Transcription)
                     return TranscriptionIndex.Invalid;
                 var acc = this;
                 var parents = new Stack<TranscriptionElement>();
-                while (acc != null && !(acc is Transcription))
+                while (acc is { } && acc is not Transcription)
                 {
                     parents.Push(acc);
                     acc = acc.Parent;
@@ -317,18 +317,18 @@ namespace TranscriptionCore
         /// next element in index Depth-first tree traversal. (Phrases are ignored)
         /// </summary>
         /// <returns></returns>
-        public TranscriptionElement Next()
+        public TranscriptionElement? Next()
         {
 
             if (_children.Count > 0 && !IsParagraph)
                 return _children[0];
 
-            if (_Parent == null)
+            if (_Parent is null)
                 return null;
             if (_ParentIndex == _Parent._children.Count - 1)
             {
                 TranscriptionElement te = _Parent.NextSibling();
-                if (te != null)
+                if (te is { })
                     return te.Next();
 
                 return null;
@@ -347,13 +347,10 @@ namespace TranscriptionCore
         public IEnumerable<TranscriptionElement> EnumerateNext()
         {
             var n = Next();
-            if (n == null)
-                yield break;
-            yield return n;
-            while (n != null)
+            while (n is { })
             {
-                n = n.Next();
                 yield return n;
+                n = n.Next();
             }
 
         }
@@ -362,15 +359,15 @@ namespace TranscriptionCore
         /// get next sibling == get next element in Depth-first tree traversal of same type as this
         /// </summary>
         /// <returns></returns>
-        public TranscriptionElement NextSibling()
+        public TranscriptionElement? NextSibling()
         {
 
-            if (_Parent == null)
+            if (_Parent is null)
                 return null;
             if (_ParentIndex == _Parent._children.Count - 1)
             {
-                TranscriptionElement te = _Parent.NextSibling();
-                if (te != null && te.Children.Count > 0)
+                var te = _Parent.NextSibling();
+                if (te is { } && te.Children.Count > 0)
                     return te._children[0];
                 else
                     return null;
@@ -379,7 +376,6 @@ namespace TranscriptionCore
             {
                 return _Parent._children[_ParentIndex + 1];
             }
-
         }
 
         /// <summary>
@@ -389,13 +385,10 @@ namespace TranscriptionCore
         public IEnumerable<TranscriptionElement> EnumerateNextSiblings()
         {
             var n = NextSibling();
-            if (n == null)
-                yield break;
-            yield return n;
-            while (n != null)
+            while (n is { })
             {
-                n = n.NextSibling();
                 yield return n;
+                n = n.NextSibling();
             }
 
         }
@@ -404,16 +397,16 @@ namespace TranscriptionCore
         /// get next sibling == get previous element in Depth-first tree traversal of same type as this
         /// </summary>
         /// <returns></returns>
-        public TranscriptionElement PreviousSibling()
+        public TranscriptionElement? PreviousSibling()
         {
 
-            if (_Parent == null)
+            if (_Parent is null)
                 return null;
             if (_ParentIndex == 0)
             {
-                TranscriptionElement te = _Parent.PreviousSibling();
-                if (te != null && te.Children.Count > 0)
-                    return te._children[te._children.Count - 1];
+                var te = _Parent.PreviousSibling();
+                if (te is { } && te.Children.Count > 0)
+                    return te._children[^1];
                 else
                     return null;
             }
@@ -431,13 +424,10 @@ namespace TranscriptionCore
         public IEnumerable<TranscriptionElement> EnumeratePreviousSibling()
         {
             var n = PreviousSibling();
-            if (n == null)
-                yield break;
-            yield return n;
-            while (n != null)
+            while (n is { })
             {
-                n = n.PreviousSibling();
                 yield return n;
+                n = n.PreviousSibling();
             }
 
         }
@@ -446,10 +436,10 @@ namespace TranscriptionCore
         /// previous element in index Depth-first tree traversal. (Phrases are ignored)
         /// </summary>
         /// <returns></returns>
-        public TranscriptionElement Previous()
+        public TranscriptionElement? Previous()
         {
 
-            if (_Parent == null)
+            if (_Parent is null)
                 return null;
             if (_ParentIndex == 0)
             {
@@ -471,13 +461,10 @@ namespace TranscriptionCore
         public IEnumerable<TranscriptionElement> EnumeratePrevious()
         {
             var n = Previous();
-            if (n == null)
-                yield break;
-            yield return n;
-            while (n != null)
+            while (n is { })
             {
-                n = n.Previous();
                 yield return n;
+                n = n.Previous();
             }
 
         }
@@ -510,9 +497,7 @@ namespace TranscriptionCore
             if (_Updating <= 0)
             {
                 _ContentChanged?.Invoke(this, new TranscriptionElementChangedEventArgs(actions));
-
-                if (Parent != null)
-                    Parent.OnContentChanged(actions);
+                Parent?.OnContentChanged(actions);
             }
             else
             {
@@ -525,7 +510,7 @@ namespace TranscriptionCore
         }
 
 
-        private EventHandler<TranscriptionElementChangedEventArgs> _ContentChanged;
+        private EventHandler<TranscriptionElementChangedEventArgs>? _ContentChanged;
         public event EventHandler<TranscriptionElementChangedEventArgs> ContentChanged
         {
             add

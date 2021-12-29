@@ -16,7 +16,7 @@ namespace TranscriptionCore
         readonly TranscriptionElement _parent;
         public VirtualTypeList(TranscriptionElement parent, List<TranscriptionElement> list)
         {
-            if (parent == null)
+            if (parent is null)
                 throw new ArgumentNullException();
 
             _elementlist = list;

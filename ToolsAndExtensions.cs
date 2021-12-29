@@ -12,7 +12,7 @@ namespace TranscriptionCore
         {
             foreach (var a in attributes)
             {
-                if (elm.Attribute(a) == null)
+                if (elm.Attribute(a) is null)
                     return false;
             }
 

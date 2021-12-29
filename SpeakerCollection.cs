@@ -12,16 +12,16 @@ namespace TranscriptionCore
     /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
     /// </summary>
     /// <returns></returns>
-    public class SpeakerCollection:IList<Speaker>
+    public class SpeakerCollection : IList<Speaker>
     {
         protected string _fileName;
         public string FileName
         {
             get { return _fileName; }
-            set { _fileName  = value; }
+            set { _fileName = value; }
         }
 
-        protected List<Speaker> _Speakers = new List<Speaker>(); 
+        protected List<Speaker> _Speakers = new List<Speaker>();
 
 
         protected Dictionary<string, string> elements = new Dictionary<string, string>();
@@ -42,18 +42,10 @@ namespace TranscriptionCore
         /// <param name="aSpeakers"></param>
         public SpeakerCollection(SpeakerCollection aSpeakers)
         {
-            if (aSpeakers != null)
-            {
-                this._fileName = aSpeakers._fileName;
-                if (aSpeakers._Speakers != null)
-                {
-                    this._Speakers = new List<Speaker>();
-                    for (int i = 0; i < aSpeakers._Speakers.Count; i++)
-                    {
-                        this._Speakers.Add(aSpeakers._Speakers[i].Copy());
-                    }
-                }
-            }
+            if (aSpeakers is null)
+                throw new ArgumentNullException(nameof(aSpeakers));
+            this._fileName = aSpeakers._fileName;
+            this._Speakers = aSpeakers._Speakers.Select(s => s.Copy()).ToList();
         }
 
         public SpeakerCollection()
@@ -73,7 +65,7 @@ namespace TranscriptionCore
 
         public Speaker GetSpeakerByDBID(string dbid)
         {
-            return _Speakers.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m=>m.DBID ==dbid));
+            return _Speakers.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m => m.DBID == dbid));
         }
 
         public Speaker GetSpeakerByName(string fullname)
@@ -149,7 +141,7 @@ namespace TranscriptionCore
                     var comment = sp.Element("Comment");
                     var lang = sp.Element("DefaultLang");
 
-                    if (id != null)
+                    if (id is { })
                         speaker.SerializationID = XmlConvert.ToInt32(id.Value);
                     else
                         continue;
@@ -176,7 +168,7 @@ namespace TranscriptionCore
                             break;
                     }
 
-                    if (comment != null && !string.IsNullOrWhiteSpace(comment.Value))
+                    if (comment is { } && !string.IsNullOrWhiteSpace(comment.Value))
                         speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
 
 

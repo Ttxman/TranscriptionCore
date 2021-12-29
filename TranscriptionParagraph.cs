@@ -39,16 +39,16 @@ namespace TranscriptionCore
         {
             get
             {
-                string ret = "";
-                if (this.Phrases != null)
+                if (this.Phrases is { })
                 {
+                    StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < this.Phrases.Count; i++)
-                    {
-                        ret += this.Phrases[i].Text;
-                    }
+                        sb.Append(this.Phrases[i].Text);
+
+                    return sb.ToString();
                 }
 
-                return ret;
+                return "";
             }
             set { throw new NotImplementedException("cannot add text directly into paragraph"); }
         }
@@ -61,16 +61,16 @@ namespace TranscriptionCore
         {
             get
             {
-                string ret = "";
-                if (this.Phrases != null)
+                if (this.Phrases is { })
                 {
+                    StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < this.Phrases.Count; i++)
-                    {
-                        ret += this.Phrases[i].Phonetics;
-                    }
+                        sb.Append(Phrases[i].Phonetics);
+
+                    return sb.ToString();
                 }
 
-                return ret;
+                return "";
             }
             set { throw new NotImplementedException("cannot add phonetics directly into paragraph"); }
         }
@@ -151,14 +151,14 @@ namespace TranscriptionCore
         {
             get
             {
-                if (_speaker == null)
+                if (_speaker is null)
                     return _internalID;
                 else
                     return _speaker.SerializationID;
             }
             set
             {
-                if (_speaker != null && _internalID != Speaker.DefaultID)
+                if (_speaker is { } && _internalID != Speaker.DefaultID)
                     throw new ArgumentException("cannot set speaker ID while Speaker is set");
                 _internalID = value;
             }
@@ -173,14 +173,9 @@ namespace TranscriptionCore
             }
             set
             {
-                if (value == null)
-                {
-                    throw new ArgumentException("speaker on paragraph cannot be null, use TranscriptionCore.Speaker.DefaultSepeaker");
-                }
-
                 var old = _speaker;
-                _speaker = value;
-                _internalID = (value != null) ? value.SerializationID : Speaker.DefaultID;
+                _speaker = value ?? throw new ArgumentException("speaker on paragraph cannot be null, use TranscriptionCore.Speaker.DefaultSepeaker");
+                _internalID = value?.SerializationID ?? Speaker.DefaultID;
 
                 OnContentChanged(new ParagraphSpeakerAction(this, this.TranscriptionIndex, this.AbsoluteIndex, old));
             }
@@ -232,35 +227,31 @@ namespace TranscriptionCore
 
             e.Elements(isStrict ? "phrase" : "p").Select(p => (TranscriptionElement)TranscriptionPhrase.DeserializeV2(p, isStrict)).ToList().ForEach(p => par.Add(p)); ;
 
-            if (e.Attribute(isStrict ? "attributes" : "a") != null)
-                par.AttributeString = e.Attribute(isStrict ? "attributes" : "a").Value;
+            if (e.Attribute(isStrict ? "attributes" : "a")?.Value is { } astr)
+                par.AttributeString = astr;
 
-            if (e.Attribute(isStrict ? "begin" : "b") != null)
+            if (e.Attribute(isStrict ? "begin" : "b")?.Value is string bval)
             {
-                string val = e.Attribute(isStrict ? "begin" : "b").Value;
-                if (int.TryParse(val, out int ms))
+                if (int.TryParse(bval, out int ms))
                     par.Begin = TimeSpan.FromMilliseconds(ms);
                 else
-                    par.Begin = XmlConvert.ToTimeSpan(val);
+                    par.Begin = XmlConvert.ToTimeSpan(bval);
             }
             else
             {
-                var ch = par._children.FirstOrDefault();
-                par.Begin = ch == null ? TimeSpan.Zero : ch.Begin;
+                par.Begin = par._children.FirstOrDefault()?.Begin ?? TimeSpan.Zero;
             }
 
-            if (e.Attribute(isStrict ? "end" : "e") != null)
+            if (e.Attribute(isStrict ? "end" : "e")?.Value is string eval)
             {
-                string val = e.Attribute(isStrict ? "end" : "e").Value;
-                if (int.TryParse(val, out int ms))
+                if (int.TryParse(eval, out int ms))
                     par.End = TimeSpan.FromMilliseconds(ms);
                 else
-                    par.End = XmlConvert.ToTimeSpan(val);
+                    par.End = XmlConvert.ToTimeSpan(eval);
             }
             else
             {
-                var ch = par._children.LastOrDefault();
-                par.End = ch == null ? TimeSpan.Zero : ch.Begin;
+                par.End = par._children.LastOrDefault()?.End ?? TimeSpan.Zero;
             }
 
             return par;
@@ -295,8 +286,7 @@ namespace TranscriptionCore
             }
             else
             {
-                var ch = _children.FirstOrDefault();
-                Begin = ch == null ? TimeSpan.Zero : ch.Begin;
+                Begin = _children.FirstOrDefault()?.Begin ?? TimeSpan.Zero;
             }
 
             if (Elements.TryGetValue("e", out bfr))
@@ -308,8 +298,7 @@ namespace TranscriptionCore
             }
             else
             {
-                var ch = _children.LastOrDefault();
-                End = ch == null ? TimeSpan.Zero : ch.Begin;
+                End = _children.LastOrDefault()?.End ?? TimeSpan.Zero;
             }
 
 
@@ -341,7 +330,7 @@ namespace TranscriptionCore
                 Phrases.Select(p => p.Serialize())
             );
 
-            if (_lang != null)
+            if (_lang is { })
                 elm.Add(new XAttribute("l", Language.ToLower()));
 
             return elm;
@@ -359,7 +348,7 @@ namespace TranscriptionCore
             this.End = aKopie.End;
             this.trainingElement = aKopie.trainingElement;
             this.DataAttributes = aKopie.DataAttributes;
-            if (aKopie.Phrases != null)
+            if (aKopie.Phrases is { })
             {
                 this.Phrases = new VirtualTypeList<TranscriptionPhrase>(this, this._children);
                 for (int i = 0; i < aKopie.Phrases.Count; i++)
@@ -401,7 +390,7 @@ namespace TranscriptionCore
         {
             get
             {
-                if (_Parent != null)
+                if (_Parent is { })
                 {
                     int sum = _Parent.AbsoluteIndex + _ParentIndex + 1;
                     return sum;
@@ -422,7 +411,7 @@ namespace TranscriptionCore
             set
             {
                 var oldlang = _lang;
-                _lang = (value != null) ? value.ToUpper() : null;
+                _lang = value?.ToUpper();
                 OnContentChanged(new ParagraphLanguageAction(this, this.TranscriptionIndex, this.AbsoluteIndex, oldlang));
             }
         }
