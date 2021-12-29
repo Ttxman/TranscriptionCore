@@ -164,17 +164,17 @@ namespace TranscriptionCore
         public void ValidateIndexOrThrow(TranscriptionIndex index)
         {
             if (!index.IsValid)
-                throw new ArgumentOutOfRangeException("index", "invalid index value");
+                throw new ArgumentOutOfRangeException(nameof(index), "invalid index value");
         }
 
-        protected TranscriptionElement _Parent;
+        protected TranscriptionElement? _Parent;
         protected int _ParentIndex;
         public int ParentIndex
         {
             get { return _ParentIndex; }
         }
 
-        public TranscriptionElement Parent
+        public TranscriptionElement? Parent
         {
             get { return _Parent; }
         }
@@ -265,8 +265,6 @@ namespace TranscriptionCore
             if (index < 0 || index >= Children.Count)
                 throw new IndexOutOfRangeException();
 
-            TranscriptionElement element = _children[index];
-            int indexabs = element.AbsoluteIndex;
             var c = _children[index];
             var ci = c.TranscriptionIndex;
             var ca = c.AbsoluteIndex;

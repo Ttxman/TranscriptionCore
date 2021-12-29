@@ -150,24 +150,12 @@ namespace TranscriptionCore
                     speaker.FirstName = fname.Value ?? "";
                     speaker.Surname = sname.Value ?? "";
 
-                    switch (sex.Value.ToLower())
+                    speaker.Sex = sex.Value.ToLower() switch
                     {
-                        case "m":
-                        case "muž":
-                        case "male":
-                            speaker.Sex = Speaker.Sexes.Male;
-                            break;
-
-                        case "f":
-                        case "žena":
-                        case "female":
-                            speaker.Sex = Speaker.Sexes.Female;
-                            break;
-                        default:
-                            speaker.Sex = Speaker.Sexes.X;
-                            break;
-                    }
-
+                        "m" or "muž" or "male" => Speaker.Sexes.Male,
+                        "f" or "žena" or "female" => Speaker.Sexes.Female,
+                        _ => Speaker.Sexes.X,
+                    };
                     if (comment is { } && !string.IsNullOrWhiteSpace(comment.Value))
                         speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
 

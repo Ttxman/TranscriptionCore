@@ -153,18 +153,12 @@ namespace TranscriptionCore
             sp.Surname = s.Attribute("surname").Value;
             sp.FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
-            switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
+            sp.Sex = (s.Attribute("sex") ?? EmptyAttribute).Value switch
             {
-                case "M":
-                    sp.Sex = Sexes.Male;
-                    break;
-                case "F":
-                    sp.Sex = Sexes.Female;
-                    break;
-                default:
-                    sp.Sex = Sexes.X;
-                    break;
-            }
+                "M" => Sexes.Male,
+                "F" => Sexes.Female,
+                _ => Sexes.X,
+            };
 
             sp.Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
@@ -199,19 +193,12 @@ namespace TranscriptionCore
             Surname = s.Attribute("surname").Value;
             FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
-            switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
+            Sex = (s.Attribute("sex") ?? EmptyAttribute).Value switch
             {
-                case "m":
-                    Sex = Sexes.Male;
-                    break;
-                case "f":
-                    Sex = Sexes.Female;
-                    break;
-                default:
-                    Sex = Sexes.X;
-                    break;
-            }
-
+                "m" => Sexes.Male,
+                "f" => Sexes.Female,
+                _ => Sexes.X,
+            };
             DefaultLang = s.Attribute("lang").Value.ToUpper();
 
             //merges

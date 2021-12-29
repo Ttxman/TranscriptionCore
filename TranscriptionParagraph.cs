@@ -367,7 +367,7 @@ namespace TranscriptionCore
             if (Phrases.Count > 0)
             {
                 this.Begin = Phrases[0].Begin;
-                this.End = Phrases[Phrases.Count - 1].End;
+                this.End = Phrases[^1].End;
             }
         }
         public TranscriptionParagraph(params TranscriptionPhrase[] phrases)

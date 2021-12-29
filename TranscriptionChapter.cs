@@ -65,7 +65,6 @@ namespace TranscriptionCore
 
         #region serializtion
         public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
         public static TranscriptionChapter DeserializeV2(XElement c, bool isStrict)
         {

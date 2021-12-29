@@ -17,7 +17,7 @@ namespace TranscriptionCore
         public VirtualTypeList(TranscriptionElement parent, List<TranscriptionElement> list)
         {
             if (parent is null)
-                throw new ArgumentNullException();
+                throw new ArgumentNullException(nameof(parent));
 
             _elementlist = list;
            _parent = parent;

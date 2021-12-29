@@ -206,10 +206,9 @@ namespace TranscriptionCore
             return toret;
         }
 
-        public TranscriptionParagraph ReturnLastElemenWithEndBeforeTime(TimeSpan cas)
+        public TranscriptionParagraph? ReturnLastElemenWithEndBeforeTime(TimeSpan cas)
         {
-            List<TranscriptionParagraph> toret = new List<TranscriptionParagraph>();
-            TranscriptionParagraph par = null;
+            TranscriptionParagraph? par = null;
             foreach (var el in this)
             {
                 if (el.End < cas)
@@ -226,10 +225,9 @@ namespace TranscriptionCore
         }
 
 
-        public TranscriptionParagraph ReturnLastElemenWithBeginBeforeTime(TimeSpan cas)
+        public TranscriptionParagraph? ReturnLastElemenWithBeginBeforeTime(TimeSpan cas)
         {
-            List<TranscriptionParagraph> toret = new List<TranscriptionParagraph>();
-            TranscriptionParagraph par = null;
+            TranscriptionParagraph? par = null;
             foreach (var el in this)
             {
                 if (el.Begin < cas)
@@ -304,22 +302,20 @@ namespace TranscriptionCore
 
         public bool Serialize(string filename, bool savecompleteSpeakers = false)
         {
-            using (FileStream s = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
+            using FileStream s = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024);
+
+            bool output = Serialize(s, savecompleteSpeakers);
+
+            if (output)
             {
+                this.FileName = filename;
+                this.Saved = true;
 
-                bool output = Serialize(s, savecompleteSpeakers);
-
-                if (output)
-                {
-                    this.FileName = filename;
-                    this.Saved = true;
-
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -385,14 +381,12 @@ namespace TranscriptionCore
 
         public static void Deserialize(string filename, Transcription storage)
         {
-            using (Stream s = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using Stream s = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Deserialize(s, storage);
+            if (storage is { })
             {
-                Deserialize(s, storage);
-                if (storage is { })
-                {
-                    storage.FileName = filename;
-                    storage.Saved = true;
-                }
+                storage.FileName = filename;
+                storage.Saved = true;
             }
         }
 
@@ -607,7 +601,7 @@ namespace TranscriptionCore
                             if (int.TryParse(val, out result))
                                 if (result < 0)
                                     if (result == -1 && s.Paragraphs.Count > 0)
-                                        p.Begin = s.Paragraphs[s.Paragraphs.Count - 1].End;
+                                        p.Begin = s.Paragraphs[^1].End;
                                     else
                                         p.Begin = new TimeSpan(result);
                                 else
@@ -716,7 +710,7 @@ namespace TranscriptionCore
                                 if (result < 0)
                                     if (result == -1)
                                     {
-                                        p.Begin = s.Paragraphs[s.Paragraphs.Count - 1].End;
+                                        p.Begin = s.Paragraphs[^1].End;
                                     }
                                     else
                                         p.End = TimeSpan.FromMilliseconds(result);
@@ -1158,17 +1152,17 @@ namespace TranscriptionCore
                 if (_children.Count == 0)
                     Add(new TranscriptionChapter());
 
-                _children[_children.Count - 1].Add(item);
+                _children[^1].Add(item);
             }
             else if (item is TranscriptionParagraph)
             {
                 if (_children.Count == 0)
                     Add(new TranscriptionChapter());
 
-                if (_children[_children.Count - 1].Children.Count == 0)
+                if (_children[^1].Children.Count == 0)
                     Add(new TranscriptionSection());
 
-                _children[_children.Count - 1].Children[_children[_children.Count - 1].Children.Count - 1].Add(item);
+                _children[^1].Children[^1].Add(item);
             }
         }
 
