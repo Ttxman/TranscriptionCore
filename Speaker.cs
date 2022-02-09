@@ -413,7 +413,7 @@ namespace TranscriptionCore
             return FullName + " (" + DefaultLang + ")";
         }
 
-        public static readonly int DefaultID = int.MinValue;
+        public static readonly int DefaultID = Constants.DefailtSpeakerId;
         public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
 
         /// <summary>
@@ -425,7 +425,7 @@ namespace TranscriptionCore
             return new Speaker(this);
         }
 
-        string _dbid = null;
+        string? _dbid = null;
 
         /// <summary>
         /// if not set, GUID is automatically generated on first read
@@ -434,7 +434,7 @@ namespace TranscriptionCore
         /// SHOULD be always UNIQUE GUID-like string (NanoTrans expects that ids from DBType.API and DBType.User can't conflict)
         /// empty string is automatically converted to null, dbid will be generated on next read
         /// </summary>
-        public string DBID
+        public string? DBID
         {
             get
             {

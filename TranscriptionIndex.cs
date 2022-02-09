@@ -7,60 +7,36 @@ namespace TranscriptionCore
 {
     public struct TranscriptionIndex
     {
-        private readonly int _chapterindex;
-
-        public int Chapterindex
-        {
-            get { return _chapterindex; }
-        }
-        private readonly int _sectionindex;
-
-        public int Sectionindex
-        {
-            get { return _sectionindex; }
-        }
-        private readonly int _paragraphIndex;
-
-        public int ParagraphIndex
-        {
-            get { return _paragraphIndex; }
-        }
-        private readonly int _phraseIndex;
-
-        public int PhraseIndex
-        {
-            get { return _phraseIndex; }
-        }
-
-
+        public int Chapterindex { get; init; }
+        public readonly int Sectionindex { get; init; }
+        public readonly int ParagraphIndex { get; init; }
+        public readonly int PhraseIndex { get; init; }
 
         public TranscriptionIndex(int chapterindex = -1, int sectionindex = -1, int paragraphIndex = -1, int phraseIndex = -1)
         {
-            _chapterindex = chapterindex;
-            _sectionindex = sectionindex;
-            _paragraphIndex = paragraphIndex;
-            _phraseIndex = phraseIndex;
+            Chapterindex = chapterindex;
+            Sectionindex = sectionindex;
+            ParagraphIndex = paragraphIndex;
+            PhraseIndex = phraseIndex;
         }
 
         public TranscriptionIndex(int[] indexa)
         {
-            _chapterindex = indexa[0];
-            _sectionindex = indexa[1];
-            _paragraphIndex = indexa[2];
-            _phraseIndex = indexa[3];
+            Chapterindex = indexa[0];
+            Sectionindex = indexa[1];
+            ParagraphIndex = indexa[2];
+            PhraseIndex = indexa[3];
         }
 
         public static readonly TranscriptionIndex FirstChapter = new TranscriptionIndex(0, -1, -1, -1);
         public static readonly TranscriptionIndex FirstSection = new TranscriptionIndex(0, 0, -1, -1);
         public static readonly TranscriptionIndex FirstParagraph = new TranscriptionIndex(0, 0, 0, -1);
         public static readonly TranscriptionIndex FirstPhrase = new TranscriptionIndex(0, 0, 0, -1);
-
         public static readonly TranscriptionIndex Invalid = new TranscriptionIndex(-1, -1, -1, -1);
-
 
         public int[] ToArray()
         {
-            return new int[] { _chapterindex, _sectionindex, _paragraphIndex, _phraseIndex };
+            return new int[] { Chapterindex, Sectionindex, ParagraphIndex, PhraseIndex };
         }
 
 
@@ -86,7 +62,7 @@ namespace TranscriptionCore
         {
             get
             {
-                return IsValid && _phraseIndex >= 0;
+                return IsValid && PhraseIndex >= 0;
             }
         }
 
@@ -94,7 +70,7 @@ namespace TranscriptionCore
         {
             get
             {
-                return IsValid && _paragraphIndex >= 0;
+                return IsValid && ParagraphIndex >= 0;
             }
         }
 
@@ -102,7 +78,7 @@ namespace TranscriptionCore
         {
             get
             {
-                return IsValid && _sectionindex >= 0;
+                return IsValid && Sectionindex >= 0;
             }
         }
 
@@ -111,36 +87,13 @@ namespace TranscriptionCore
         {
             get
             {
-                return IsValid && _chapterindex >= 0;
-            }
-        }
-
-
-        /// <summary>
-        /// type of element that is indexed by this paragraph - TranscriptionChapter, Section, Paragraph, Phrase
-        /// </summary>
-        public Type IndexedType
-        {
-            get
-            {
-                if (!IsValid)
-                    return null;
-
-                if (_phraseIndex >= 0)
-                    return typeof(TranscriptionPhrase);
-                else if (_paragraphIndex >= 0)
-                    return typeof(TranscriptionParagraph);
-                else if (_sectionindex >= 0)
-                    return typeof(TranscriptionSection);
-                else// if (_sectionindex >= 0)
-                    return typeof(TranscriptionChapter);
+                return IsValid && Chapterindex >= 0;
             }
         }
 
         public override string ToString()
         {
-            return string.Format("{4}: {0};{1};{2};{3}",_chapterindex,_sectionindex,_paragraphIndex,_phraseIndex,IsValid?"TIndex":"TInvalidIndex");
+            return string.Format("{4}: {0};{1};{2};{3}", Chapterindex, Sectionindex, ParagraphIndex, PhraseIndex, IsValid ? "TIndex" : "TInvalidIndex");
         }
-
     }
 }

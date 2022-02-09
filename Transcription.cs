@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
@@ -13,10 +14,23 @@ using System.Xml.Serialization;
 
 namespace TranscriptionCore
 {
-    public class Transcription : TranscriptionElement, IList<TranscriptionElement>
+    public class Transcription
     {
-        public double TotalHeigth;
-        public bool FindNext(ref TranscriptionElement paragraph, ref int TextOffset, out int length, string pattern, bool isregex, bool CaseSensitive, bool searchinspeakers)
+        public bool Revert(Undo act)
+        {
+            switch (act)
+            {
+                case CustomElementsChanged cec:
+                    Elements = cec.Old;
+                    return true;
+            }
+            return false;
+        }
+
+        private record NameChanged(string Old) : Undo { }
+        public record CustomElementsChanged(ImmutableDictionary<string, string> Old) : Undo;
+
+        public bool FindNext(ref TranscriptionParagraph paragraph, ref int TextOffset, out int length, string pattern, bool isregex, bool CaseSensitive, bool searchinspeakers)
         {
             length = 0;
             if (paragraph is null)
@@ -24,7 +38,7 @@ namespace TranscriptionCore
 
             if (searchinspeakers)
             {
-                foreach(TranscriptionParagraph pr in paragraph.EnumerateNextSiblings())
+                foreach (TranscriptionParagraph pr in paragraph.EnumerateNext())
                 {
                     if (pr.Speaker.FullName.ToLower().Contains(pattern.ToLower()))
                     {
@@ -75,7 +89,7 @@ namespace TranscriptionCore
             return false;
         }
 
-        public string FileName { get; set; }
+        public string? FileName { get; set; }
 
         private bool _saved;
         public bool Saved
@@ -94,35 +108,15 @@ namespace TranscriptionCore
         public DateTime Created { get; set; }
 
         /// <summary>
-        /// transcription source, not mandatory
-        /// </summary>
-        public string Source { get; set; }
-        /// <summary>
-        /// transcription type, not mandatory
-        /// </summary>
-        public string Type { get; set; }
-        /// <summary>
         /// file containing audio data for transcription
         /// </summary>
-        public string MediaURI { get; set; }
-        /// <summary>
-        /// file containing video data - can be same as audio 
-        /// </summary>
-        public string VideoFileName { get; set; }
+        public string? MediaURI { get; set; }
 
-
-
-
-        private VirtualTypeList<TranscriptionChapter> _Chapters;
 
         /// <summary>
         /// all chapters in transcription
         /// </summary>
-        public VirtualTypeList<TranscriptionChapter> Chapters
-        {
-            get { return _Chapters; }
-            private set { _Chapters = value; }
-        }
+        public UndoableCollection<TranscriptionChapter> Chapters { get; }
 
         [XmlElement("SpeakersDatabase")]
         private SpeakerCollection _speakers = new SpeakerCollection();
@@ -141,9 +135,37 @@ namespace TranscriptionCore
             FileName = null;
             Saved = false;
             DocumentID = Guid.NewGuid().ToString();
-            Chapters = new VirtualTypeList<TranscriptionChapter>(this, this._children);
             Created = DateTime.UtcNow;
-            //constructor  
+
+            void childAdded(TranscriptionChapter child, int index)
+            {
+                child.Parent = this;
+                child.ParentIndex = index;
+            }
+
+            void childRemoved(TranscriptionChapter child)
+            {
+                child.Parent = null;
+                child.ParentIndex = -1;
+            }
+
+            Chapters = new UndoableCollection<TranscriptionChapter>()
+            {
+                OnAdd = childAdded,
+                OnRemoved = childRemoved
+            };
+
+            Chapters.Update.ContentChanged = OnChange;
+            Updates = new UpdateTracker()
+            {
+                ContentChanged = OnChange
+            };
+        }
+        public UpdateTracker Updates { get; }
+
+        internal void OnChange(IEnumerable<Undo> undos)
+        {
+
         }
 
 
@@ -152,21 +174,16 @@ namespace TranscriptionCore
         /// copy contructor
         /// </summary>
         /// <param name="toCopy"></param>
-        public Transcription(Transcription toCopy)
-            : this()
+        public Transcription(Transcription toCopy) : this()
         {
-            this.Source = toCopy.Source;
             this.MediaURI = toCopy.MediaURI;
-            this.VideoFileName = toCopy.VideoFileName;
-            this.Type = toCopy.Type;
             this.Created = toCopy.Created;
             if (toCopy.Chapters is { })
             {
-                this.Chapters = new VirtualTypeList<TranscriptionChapter>(this, this._children);
+                Chapters.Update.BeginUpdate(false);
                 for (int i = 0; i < toCopy.Chapters.Count; i++)
-                {
-                    this.Chapters.Add(new TranscriptionChapter(toCopy.Chapters[i]));
-                }
+                    Chapters.Add(new TranscriptionChapter(toCopy.Chapters[i]));
+                Chapters.Update.EndUpdate();
             }
             this.FileName = toCopy.FileName;
             this._speakers = new SpeakerCollection(toCopy._speakers);
@@ -177,72 +194,36 @@ namespace TranscriptionCore
         /// automaticly deserialize from file
         /// </summary>
         /// <param name="path"></param>
-        public Transcription(string path)
-            : this()
+        public Transcription(string path) : this()
         {
             Deserialize(path, this);
         }
-        public Transcription(FileInfo f)
-            : this(f.FullName)
+        public Transcription(FileInfo f) : this(f.FullName)
         {
 
         }
 
-        /// <summary>
-        /// vrati vsechny vyhovujici elementy casu
-        /// </summary>
-        /// <param name="aPoziceKurzoru"></param>
-        /// <returns></returns>
-        public List<TranscriptionParagraph> ReturnElementsAtTime(TimeSpan time)
-        {
-            List<TranscriptionParagraph> toret = new List<TranscriptionParagraph>();
-            foreach (var el in this)
-            {
-                if (el.IsParagraph && el.Begin <= time && el.End > time)
-                {
-                    toret.Add((TranscriptionParagraph)el);
-                }
-            }
-            return toret;
-        }
+        public IEnumerable<TranscriptionSection> Sections
+            => Chapters
+                .SelectMany(c => c.Sections);
+        public IEnumerable<TranscriptionParagraph> Paragraphs
+            => Sections
+                .SelectMany(s => s.Paragraphs);
 
-        public TranscriptionParagraph? ReturnLastElemenWithEndBeforeTime(TimeSpan cas)
-        {
-            TranscriptionParagraph? par = null;
-            foreach (var el in this)
-            {
-                if (el.End < cas)
-                {
-                    if (el.IsParagraph)
-                    {
-                        par = (TranscriptionParagraph)el;
-                    }
-                }
-                else
-                    break;
-            }
-            return par;
-        }
+        public IEnumerable<TranscriptionParagraph> ParagraphsAt(TimeSpan time)
+            => Paragraphs
+                .Where(p => p.Begin <= time && p.End > time);
+
+        public TranscriptionParagraph? LastParagraphBefore(TimeSpan time)
+            => Paragraphs
+                .TakeWhile(p => p.End < time)
+                .LastOrDefault();
 
 
-        public TranscriptionParagraph? ReturnLastElemenWithBeginBeforeTime(TimeSpan cas)
-        {
-            TranscriptionParagraph? par = null;
-            foreach (var el in this)
-            {
-                if (el.Begin < cas)
-                {
-                    if (el.IsParagraph)
-                    {
-                        par = (TranscriptionParagraph)el;
-                    }
-                }
-                else
-                    break;
-            }
-            return par;
-
-        }
+        public TranscriptionParagraph? LastParagraphStartingBefore(TimeSpan time)
+            => Paragraphs
+                .TakeWhile(p => p.Begin < time)
+                .LastOrDefault();
 
         /// <summary>
         /// Remove speaker from all paragraphs (Paragraphs will return default Speaker.DefaultSpeaker) and from internal database (if not pinned)
@@ -253,25 +234,20 @@ namespace TranscriptionCore
         {
             try
             {
-                if (!string.IsNullOrEmpty(speaker.FullName))
+                if (this._speakers.Contains(speaker))
                 {
-                    if (this._speakers.Contains(speaker))
-                    {
-                        if (!speaker.PinnedToDocument)
-                            _speakers.Remove(speaker);
+                    if (!speaker.PinnedToDocument)
+                        _speakers.Remove(speaker);
 
-                        Saved = false;
-                        foreach (var p in EnumerateParagraphs())
-                            if (p.Speaker == speaker)
-                                p.Speaker = Speaker.DefaultSpeaker;
+                    Saved = false;
+                    foreach (var p in Paragraphs)
+                        if (p.Speaker == speaker)
+                            p.Speaker = Speaker.DefaultSpeaker;
 
-                        Saved = false;
-                        return true;
-                    }
-                    return false;
-
+                    Saved = false;
+                    return true;
                 }
-                else return false;
+                return false;
             }
             catch
             {
@@ -294,7 +270,7 @@ namespace TranscriptionCore
                     _speakers.Add(replacement);
             }
 
-            foreach (var p in EnumerateParagraphs())
+            foreach (var p in Paragraphs)
                 if (p.Speaker == toReplace)
                     p.Speaker = replacement;
 
@@ -346,7 +322,6 @@ namespace TranscriptionCore
 
         public bool Serialize(Stream datastream, bool SaveSpeakersDetailed = false)
         {
-
             XDocument xdoc = Serialize(SaveSpeakersDetailed);
             xdoc.Save(datastream);
             return true;
@@ -354,19 +329,19 @@ namespace TranscriptionCore
 
         private void ReindexSpeakers()
         {
-            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID).Distinct().ToList();
+            var speakers = Paragraphs.Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID).Distinct().ToList();
             for (int i = 0; i < speakers.Count; i++)
-            {
                 speakers[i].SerializationID = i;
-            }
         }
 
         private XElement SerializeSpeakers(bool SaveSpeakersDetailed)
         {
-            var speakers = this.EnumerateParagraphs().Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID)
-                            .Concat(_speakers.Where(s => s.PinnedToDocument))
-                            .Distinct()
+            var speakers = Paragraphs.Select(p => p.Speaker)
+                .Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID)
+                .Concat(_speakers.Where(s => s.PinnedToDocument))
+                .Distinct()
                 .ToList();
+
             return new SpeakerCollection(speakers).Serialize(SaveSpeakersDetailed);
         }
 
@@ -401,13 +376,13 @@ namespace TranscriptionCore
 
         public static void Deserialize(Stream datastream, Transcription storage)
         {
-            storage.BeginUpdate(false);
+            storage.Updates.BeginUpdate(false);
             XmlTextReader reader = new XmlTextReader(datastream);
             if (reader.Read())
             {
                 reader.Read();
                 reader.Read();
-                string version = reader.GetAttribute("version");
+                string version = reader.GetAttribute("version") ?? "";
 
                 if (version == "3.0")
                 {
@@ -423,7 +398,7 @@ namespace TranscriptionCore
                     DeserializeV1(new XmlTextReader(datastream), storage);
                 }
             }
-            storage.EndUpdate();
+            storage.Updates.EndUpdate();
         }
 
         public XElement Meta = EmptyMeta();
@@ -432,7 +407,18 @@ namespace TranscriptionCore
             return new XElement("meta");
         }
 
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
+        private ImmutableDictionary<string, string> elements = ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
+        public ImmutableDictionary<string, string> Elements
+        {
+
+            get => elements;
+            set
+            {
+                var oldv = elements;
+                elements = value;
+                Updates.OnContentChanged(new CustomElementsChanged(oldv));
+            }
+        }
 
         /// <summary>
         /// deserialize transcription in v2 format
@@ -443,32 +429,34 @@ namespace TranscriptionCore
         {
 
             Transcription data = storage;
-            data.BeginUpdate();
+            data.Updates.BeginUpdate(false);
             var document = XDocument.Load(reader);
             var transcription = document.Elements().First();
 
-            string style = transcription.Attribute("style").Value;
+            string? style = transcription.Attribute("style")?.Value;
 
             bool isStrict = style == "strict";
-            string version = transcription.Attribute("version").Value;
-            string mediaURI = transcription.Attribute("mediaURI").Value;
-            data.MediaURI = mediaURI;
+            string? version = transcription.Attribute("version")?.Value;
+            string? mediaURI = transcription.Attribute("mediaURI")?.Value;
+            data.MediaURI = mediaURI ?? "";
             data.Meta = transcription.Element("meta") ?? EmptyMeta();
 
             var chapters = transcription.Elements(isStrict ? "chapter" : "ch");
 
-            data.Elements = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            data.Elements.Remove("style");
-            data.Elements.Remove("mediaURI");
-            data.Elements.Remove("version");
+            var elms = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            elms.Remove("style");
+            elms.Remove("mediaURI");
+            elms.Remove("version");
 
-            chapters.Select(c => (TranscriptionElement)TranscriptionChapter.DeserializeV2(c, isStrict)).ToList().ForEach(c => data.Add(c));
+            data.Elements = data.Elements.AddRange(elms);
 
-            var speakers = transcription.Element(isStrict ? "speakers" : "sp");
+            chapters.Select(c => TranscriptionChapter.DeserializeV2(c, isStrict)).ToList().ForEach(c => data.Add(c));
+
+            var speakers = transcription.Element(isStrict ? "speakers" : "sp")!;
             data.Speakers.Clear();
             data.Speakers.AddRange(speakers.Elements(isStrict ? "speaker" : "s").Select(s => Speaker.DeserializeV2(s, isStrict)));
             storage.AssingSpeakersByID();
-            data.EndUpdate();
+            data.Updates.EndUpdate();
         }
 
         /// <summary>
@@ -480,40 +468,44 @@ namespace TranscriptionCore
         {
 
             Transcription data = storage;
-            data.BeginUpdate();
+            data.Updates.BeginUpdate(false);
             var document = XDocument.Load(reader);
             var transcription = document.Elements().First();
 
-            string version = transcription.Attribute("version").Value;
-            string mediaURI = transcription.Attribute("mediauri").Value;
+            string version = transcription.Attribute("version")?.Value ?? "";
+            string mediaURI = transcription.Attribute("mediauri")?.Value ?? "";
             data.MediaURI = mediaURI;
             data.Meta = transcription.Element("meta") ?? EmptyMeta();
             var chapters = transcription.Elements("ch");
 
 
-            data.Elements = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            if (data.Elements.TryGetValue("documentid", out string did))
+            var elms = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            if (elms.TryGetValue("documentid", out string? did))
                 data.DocumentID = did;
-            if (data.Elements.TryGetValue("created", out did))
+            if (elms.TryGetValue("created", out did))
                 data.Created = XmlConvert.ToDateTime(did, XmlDateTimeSerializationMode.Unspecified);
 
 
-            data.Elements.Remove("style");
-            data.Elements.Remove("mediauri");
-            data.Elements.Remove("version");
-            data.Elements.Remove("documentid");
-            data.Elements.Remove("created");
+            elms.Remove("style");
+            elms.Remove("mediauri");
+            elms.Remove("version");
+            elms.Remove("documentid");
+            elms.Remove("created");
+
+            data.Elements = data.elements.AddRange(elms);
 
             foreach (var c in chapters.Select(c => new TranscriptionChapter(c)))
                 data.Add(c);
 
-            data.Speakers = new SpeakerCollection(transcription.Element("sp"));
+            data.Speakers = new SpeakerCollection(transcription.Element("sp")!);
             storage.AssingSpeakersByID();
-            data.EndUpdate();
+            data.Updates.EndUpdate();
         }
 
         /// <summary>
         /// read old transcription format (v1)
+        /// v1 format is mess, it was direct serialization of internal data structures
+        /// documents in this format most probably do not exists anymore
         /// </summary>
         /// <param name="reader"></param>
         /// <param name="storage">deserializes into this transcription (useful for overrides)</param>
@@ -528,8 +520,8 @@ namespace TranscriptionCore
 
                 reader.Read(); //<?xml version ...
                 reader.Read();
-                data.MediaURI = reader.GetAttribute("audioFileName");
-                string val = reader.GetAttribute("dateTime");
+                data.MediaURI = reader.GetAttribute("audioFileName") ?? "";
+                string? val = reader.GetAttribute("dateTime");
                 if (val is { })
                     data.Created = XmlConvert.ToDateTime(val, XmlDateTimeSerializationMode.Local);
 
@@ -542,28 +534,12 @@ namespace TranscriptionCore
                 while (reader.Name == "Chapter")
                 {
                     TranscriptionChapter c = new TranscriptionChapter();
-                    c.Name = reader.GetAttribute("name");
+                    c.Name = reader.GetAttribute("name") ?? "";
 
                     val = reader.GetAttribute("begin");
-                    if (int.TryParse(val, out int result))
-                        if (result < 0)
-                            c.Begin = new TimeSpan(result);
-                        else
-                            c.Begin = TimeSpan.FromMilliseconds(result);
-                    else
-                        c.Begin = XmlConvert.ToTimeSpan(val);
-
                     val = reader.GetAttribute("end");
-                    if (int.TryParse(val, out result))
-                        if (result < 0)
-                            c.End = new TimeSpan(result);
-                        else
-                            c.End = TimeSpan.FromMilliseconds(result);
-                    else
-                        c.End = XmlConvert.ToTimeSpan(val);
 
                     reader.Read();
-
                     reader.ReadStartElement("Sections");
 
 
@@ -571,29 +547,14 @@ namespace TranscriptionCore
                     {
 
                         TranscriptionSection s = new TranscriptionSection();
-                        s.Name = reader.GetAttribute("name");
+                        s.Name = reader.GetAttribute("name") ?? "";
 
                         val = reader.GetAttribute("begin");
-                        if (int.TryParse(val, out result))
-                            if (result < 0)
-                                s.Begin = new TimeSpan(result);
-                            else
-                                s.Begin = TimeSpan.FromMilliseconds(result);
-                        else
-                            s.Begin = XmlConvert.ToTimeSpan(val);
-
                         val = reader.GetAttribute("end");
-                        if (int.TryParse(val, out result))
-                            if (result < 0)
-                                s.End = new TimeSpan(result);
-                            else
-                                s.End = TimeSpan.FromMilliseconds(result);
-                        else
-                            s.End = XmlConvert.ToTimeSpan(val);
 
                         reader.Read();
                         reader.ReadStartElement("Paragraphs");
-
+                        int result = -1;
                         while (reader.Name == "Paragraph")
                         {
                             TranscriptionParagraph p = new TranscriptionParagraph();
@@ -606,7 +567,7 @@ namespace TranscriptionCore
                                         p.Begin = new TimeSpan(result);
                                 else
                                     p.Begin = TimeSpan.FromMilliseconds(result);
-                            else
+                            else if (val is { })
                                 p.Begin = XmlConvert.ToTimeSpan(val);
 
                             val = reader.GetAttribute("end");
@@ -615,11 +576,12 @@ namespace TranscriptionCore
                                     p.End = new TimeSpan(result);
                                 else
                                     p.End = TimeSpan.FromMilliseconds(result);
-                            else
+                            else if (val is { })
                                 p.End = XmlConvert.ToTimeSpan(val);
 
-                            p.trainingElement = reader.GetAttribute("trainingElement") is { } vl && XmlConvert.ToBoolean(vl);
-                            p.AttributeString = reader.GetAttribute("Attributes");
+                            reader.GetAttribute("trainingElement");
+                            if (reader.GetAttribute("Attributes") is { } atts)
+                                p.Attributes = p.Attributes.Union(atts.Split('|'));
 
                             reader.Read();
                             reader.ReadStartElement("Phrases");
@@ -633,7 +595,7 @@ namespace TranscriptionCore
                                         ph.Begin = new TimeSpan(result);
                                     else
                                         ph.Begin = TimeSpan.FromMilliseconds(result);
-                                else
+                                else if (val is { })
                                     ph.Begin = XmlConvert.ToTimeSpan(val);
 
                                 val = reader.GetAttribute("end");
@@ -642,7 +604,7 @@ namespace TranscriptionCore
                                         ph.End = new TimeSpan(result);
                                     else
                                         ph.End = TimeSpan.FromMilliseconds(result);
-                                else
+                                else if (val is { })
                                     ph.End = XmlConvert.ToTimeSpan(val);
 
                                 reader.Read();//Text;
@@ -702,7 +664,7 @@ namespace TranscriptionCore
                                     p.Begin = TimeSpan.Zero;
                                 else
                                     p.Begin = TimeSpan.FromMilliseconds(result);
-                            else
+                            else if (val is { })
                                 p.Begin = XmlConvert.ToTimeSpan(val);
 
                             val = reader.GetAttribute("end");
@@ -716,11 +678,12 @@ namespace TranscriptionCore
                                         p.End = TimeSpan.FromMilliseconds(result);
                                 else
                                     p.End = TimeSpan.FromMilliseconds(result);
-                            else
+                            else if (val is { })
                                 p.End = XmlConvert.ToTimeSpan(val);
 
-                            p.trainingElement = XmlConvert.ToBoolean(reader.GetAttribute("trainingElement"));
-                            p.AttributeString = reader.GetAttribute("Attributes");
+                            reader.GetAttribute("trainingElement");
+                            if (reader.GetAttribute("Attributes") is { } atts)
+                                p.Attributes = p.Attributes.Union(atts.Split('|'));
 
                             reader.Read();
                             reader.ReadStartElement("Phrases");
@@ -734,7 +697,7 @@ namespace TranscriptionCore
                                         ph.Begin = p.Begin;
                                     else
                                         ph.Begin = TimeSpan.FromMilliseconds(result);
-                                else
+                                else if (val is { })
                                     ph.Begin = XmlConvert.ToTimeSpan(val);
 
                                 val = reader.GetAttribute("end");
@@ -743,7 +706,7 @@ namespace TranscriptionCore
                                         ph.End = new TimeSpan(result);
                                     else
                                         ph.End = TimeSpan.FromMilliseconds(result);
-                                else
+                                else if (val is { })
                                     ph.End = XmlConvert.ToTimeSpan(val);
 
                                 reader.Read();//Text;
@@ -777,7 +740,7 @@ namespace TranscriptionCore
                             //zarovnani fonetiky k textu
 
 
-                            TranscriptionParagraph bestpar = null;
+                            TranscriptionParagraph? bestpar = null;
                             TimeSpan timeinboth = TimeSpan.Zero;
 
                             if (p.Phrases.Count == 0)
@@ -869,10 +832,7 @@ namespace TranscriptionCore
 
                             if (reader.Name != "speaker")
                                 reader.Read();
-
-                            int spkr = XmlConvert.ToInt32(reader.ReadElementString("speaker"));
-                            s.Speaker = (spkr < 0) ? Speaker.DefaultID : spkr;
-
+                            reader.ReadElementString("speaker");
                         }
                         c.Sections.Add(s);
                         reader.ReadEndElement();//section
@@ -975,7 +935,7 @@ namespace TranscriptionCore
         /// </summary>
         public void AssingSpeakersByID()
         {
-            foreach (var par in this.Where(e => e.IsParagraph).Cast<TranscriptionParagraph>())
+            foreach (var par in Paragraphs)
             {
                 var sp = _speakers.FirstOrDefault(s => s.SerializationID == par.InternalID);
                 if (sp is { })
@@ -991,298 +951,36 @@ namespace TranscriptionCore
 
 
         public TranscriptionChapter LastChapter
-        {
-            get { return Chapters.Last(); }
-        }
+            => Chapters[^1];
 
         public TranscriptionSection LastSection
-        {
-            get { return Chapters.Last().Sections.Last(); }
-        }
+            => Chapters[^1].Sections[^1];
 
         public TranscriptionParagraph LastParagraph
+            => Chapters[^1].Sections[^1].Paragraphs[^1];
+
+        public void Add(TranscriptionChapter item)
+            => Chapters.Add(item);
+        public void Add(TranscriptionSection item)
+            => Chapters[^1].Sections.Add(item);
+        public void Add(TranscriptionParagraph item)
+            => Chapters[^1].Sections[^1].Paragraphs.Add(item);
+        public void Add(TranscriptionPhrase item)
+            => Chapters[^1].Sections[^1].Paragraphs[^1].Phrases.Add(item);
+
+        public void Remove(TranscriptionChapter item)
+            => Chapters.Remove(item);
+        public void Remove(TranscriptionSection item)
+            => item.Parent?.Sections?.Remove(item);
+        public void Remove(TranscriptionParagraph item)
+            => item.Parent?.Paragraphs?.Remove(item);
+        public void Remove(TranscriptionPhrase item)
+            => item.Parent?.Phrases?.Remove(item);
+
+
+        public string InnerText
         {
-            get { return Chapters.Last().Sections.Last().Paragraphs.Last(); }
-        }
-
-
-        #region IList<TranscriptionElement> Members
-
-        public int IndexOf(TranscriptionElement item)
-        {
-            int i = 0;
-            if (Chapters.Count == 0)
-                return -1;
-
-            TranscriptionElement cur = Chapters[0];
-            while (cur is { } && cur != item)
-            {
-                i++;
-                cur = cur.NextSibling();
-            }
-
-
-            return i;
-        }
-
-        public override void Insert(int index, TranscriptionElement item)
-        {
-            throw new NotSupportedException();
-        }
-
-
-        public override TranscriptionElement this[TranscriptionIndex index]
-        {
-            get
-            {
-                ValidateIndexOrThrow(index);
-
-                if (index.IsChapterIndex)
-                {
-                    if (index.IsSectionIndex)
-                        return Chapters[index.Chapterindex][index];
-
-                    return Chapters[index.Chapterindex];
-                }
-
-                throw new IndexOutOfRangeException("index");
-            }
-            set
-            {
-                ValidateIndexOrThrow(index);
-
-                if (index.IsChapterIndex)
-                {
-                    if (index.IsSectionIndex)
-                        Chapters[index.Chapterindex][index] = value;
-                    else
-                        Chapters[index.Chapterindex] = (TranscriptionChapter)value;
-                }
-                else
-                    throw new IndexOutOfRangeException("index");
-
-            }
-
-        }
-
-
-        public override void RemoveAt(TranscriptionIndex index)
-        {
-            ValidateIndexOrThrow(index);
-            if (index.IsChapterIndex)
-            {
-                if (index.IsSectionIndex)
-                    Chapters[index.Chapterindex].RemoveAt(index);
-                else
-                    Chapters.RemoveAt(index.Chapterindex);
-            }
-            else
-            {
-                throw new IndexOutOfRangeException("index");
-            }
-        }
-
-        public override void Insert(TranscriptionIndex index, TranscriptionElement value)
-        {
-            ValidateIndexOrThrow(index);
-            if (index.IsChapterIndex)
-            {
-                if (index.IsSectionIndex)
-                    Chapters[index.Chapterindex].Insert(index, value);
-                else
-                    Chapters.Insert(index.Chapterindex, (TranscriptionChapter)value);
-            }
-            else
-            {
-                throw new IndexOutOfRangeException("index");
-            }
-        }
-
-
-        public override TranscriptionElement this[int index]
-        {
-            get
-            {
-                int i = 0;
-                foreach (TranscriptionChapter c in Chapters)
-                {
-                    if (i == index)
-                        return c;
-                    i++;
-                    if (index < i + c.GetTotalChildrenCount())
-                    {
-                        foreach (TranscriptionSection s in c.Sections)
-                        {
-                            if (i == index)
-                                return s;
-                            i++;
-                            if (index < i + s.GetTotalChildrenCount())
-                            {
-                                return s.Paragraphs[index - i];
-
-                            }
-                            i += s.GetTotalChildrenCount();
-                        }
-
-                    }
-                    i += c.GetTotalChildrenCount();
-                }
-
-                throw new IndexOutOfRangeException();
-            }
-            set
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        #endregion
-
-        #region ICollection<TranscriptionElement> Members
-
-        public override void Add(TranscriptionElement item)
-        {
-
-            if (item is TranscriptionChapter)
-            {
-                base.Add(item);
-            }
-            else if (item is TranscriptionSection)
-            {
-                if (_children.Count == 0)
-                    Add(new TranscriptionChapter());
-
-                _children[^1].Add(item);
-            }
-            else if (item is TranscriptionParagraph)
-            {
-                if (_children.Count == 0)
-                    Add(new TranscriptionChapter());
-
-                if (_children[^1].Children.Count == 0)
-                    Add(new TranscriptionSection());
-
-                _children[^1].Children[^1].Add(item);
-            }
-        }
-
-        public void Clear()
-        {
-            throw new NotSupportedException();
-        }
-
-        public bool Contains(TranscriptionElement item)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void CopyTo(TranscriptionElement[] array, int arrayIndex)
-        {
-            throw new NotSupportedException();
-        }
-
-        public int Count
-        {
-            get { return Chapters.Sum(x => x.GetTotalChildrenCount()) + Chapters.Count; }
-        }
-
-        public bool IsReadOnly
-        {
-            get { return true; }
-        }
-
-        public override bool Remove(TranscriptionElement item)
-        {
-            if (item is TranscriptionChapter)
-            {
-                return base.Remove(item);
-            }
-
-            foreach (TranscriptionElement el in this)
-            {
-                if (el == item)
-                {
-                    return item.Parent.Remove(item);
-                }
-            }
-
-            return false;
-        }
-
-        #endregion
-
-        #region IEnumerable<TranscriptionElement> Members
-
-        public IEnumerator<TranscriptionElement> GetEnumerator()
-        {
-            foreach (TranscriptionChapter c in this.Chapters)
-            {
-                yield return c;
-
-                foreach (TranscriptionSection s in c.Sections)
-                {
-                    yield return s;
-
-                    foreach (TranscriptionParagraph p in s.Paragraphs)
-                    {
-                        yield return p;
-                    }
-                }
-            }
-            yield break;
-        }
-
-
-        #endregion
-
-        #region IEnumerable Members
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        #endregion
-
-        public override string Text
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public override string Phonetics
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-
-        public override int AbsoluteIndex
-        {
-            get { throw new NotSupportedException(); }
-        }
-
-
-        public IEnumerable<TranscriptionParagraph> EnumerateParagraphs()
-        {
-            return this.Where(p => p.IsParagraph).Cast<TranscriptionParagraph>();
-        }
-
-        public override string InnerText
-        {
-            get { return string.Join("\r\n", Children.Select(c => c.Text)); }
+            get { return string.Join("\r\n", Chapters.Select(c => c.InnerText)); }
         }
     }
 }

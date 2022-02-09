@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
@@ -12,42 +13,113 @@ namespace TranscriptionCore
     /// <summary>
     /// the smallest part of transcription with time tags.
     /// </summary>
-    public sealed class TranscriptionPhrase : TranscriptionElement
+    public sealed class TranscriptionPhrase
     {
-        private string _text = "";
-
-        public override string Text
+        public bool Revert(Undo act)
         {
-            get { return _text; }
+            if (act is PhraseChanged c)
+            {
+                switch (c)
+                {
+                    case TextChanged tc:
+                        Text = tc.Old;
+                        return true;
+                    case PhoneticsChanged pc:
+                        Phonetics = pc.Old;
+                        return true;
+                    case BeginChanged bc:
+                        Begin = bc.Old;
+                        return true;
+                    case EndChanged ec:
+                        End = ec.Old;
+                        return true;
+                    case CustomElementsChanged cec:
+                        Elements = cec.Old;
+                        return true;
+                }
+            }
+            return false;
+        }
+
+
+        public record PhraseChanged : Undo;
+        public record TextChanged(string Old) : PhraseChanged;
+        public record PhoneticsChanged(string Old) : PhraseChanged;
+        public record BeginChanged(TimeSpan Old) : PhraseChanged;
+        public record EndChanged(TimeSpan Old) : PhraseChanged;
+        public record CustomElementsChanged(ImmutableDictionary<string, string> Old) : PhraseChanged;
+
+
+        private TimeSpan begin;
+        private TimeSpan end;
+
+
+        public TimeSpan Begin
+        {
+            get => begin;
             set
             {
-                var oldv = _text;
-                _text = value;
-                OnContentChanged(new TextAction(this, this.TranscriptionIndex, this.AbsoluteIndex, oldv));
+                var oldv = begin;
+                begin = value;
+
+                Updates.OnContentChanged(new BeginChanged(oldv));
+            }
+        }
+        public TimeSpan End
+        {
+            get => end;
+            set
+            {
+                var oldv = end;
+                end = value;
+                Updates.OnContentChanged(new EndChanged(oldv));
             }
         }
 
-        private string _phonetics = "";
 
-        public override string Phonetics
+        private string text = "";
+
+        public string Text
+        {
+            get { return text; }
+            set
+            {
+                var oldv = text;
+                text = value;
+                Updates.OnContentChanged(new TextChanged(oldv));
+            }
+        }
+
+        private string phonetics = "";
+
+        public string Phonetics
         {
             get
             {
-                return _phonetics;
+                return phonetics;
             }
             set
             {
-                var oldv = _phonetics;
-                _phonetics = value;
-                OnContentChanged(new PhrasePhoneticsAction(this, this.TranscriptionIndex, this.AbsoluteIndex, oldv));
+                var oldv = phonetics;
+                phonetics = value;
+                Updates.OnContentChanged(new PhoneticsChanged(oldv));
             }
         }
 
+        private ImmutableDictionary<string, string> elements = ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
+        public ImmutableDictionary<string, string> Elements
+        {
 
+            get => elements;
+            set
+            {
+                var oldv = elements;
+                elements = value;
+                Updates.OnContentChanged(new CustomElementsChanged(oldv));
+            }
+        }
 
         #region serialization
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
         /// <summary>
         /// V2 serialization
@@ -57,14 +129,15 @@ namespace TranscriptionCore
         public static TranscriptionPhrase DeserializeV2(XElement e, bool isStrict)
         {
             TranscriptionPhrase phr = new TranscriptionPhrase();
-            phr.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            phr.Elements.Remove(isStrict ? "begin" : "b");
-            phr.Elements.Remove(isStrict ? "end" : "e");
-            phr.Elements.Remove(isStrict ? "fon" : "f");
+            var allattrs = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            allattrs.Remove(isStrict ? "begin" : "b");
+            allattrs.Remove(isStrict ? "end" : "e");
+            allattrs.Remove(isStrict ? "fon" : "f");
 
+            phr.Elements = allattrs.ToImmutableDictionary();
 
-            phr._phonetics = (e.Attribute(isStrict ? "fon" : "f") ?? EmptyAttribute).Value;
-            phr._text = e.Value.Trim('\r', '\n');
+            phr.phonetics = e.Attribute(isStrict ? "fon" : "f")?.Value ?? "";
+            phr.text = e.Value.Trim('\r', '\n');
             if (e.Attribute(isStrict ? "begin" : "b")?.Value is { } bval)
             {
                 if (int.TryParse(bval, out int ms))
@@ -89,16 +162,17 @@ namespace TranscriptionCore
         /// v3 serialization
         /// </summary>
         /// <param name="e"></param>
-        public TranscriptionPhrase(XElement e)
+        public TranscriptionPhrase(XElement e) : this()
         {
-            Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Elements.Remove("b");
-            Elements.Remove("e");
-            Elements.Remove("f");
+            var elms = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            elms.Remove("b");
+            elms.Remove("e");
+            elms.Remove("f");
 
+            Elements = elms.ToImmutableDictionary();
 
-            this._phonetics = (e.Attribute("f") ?? EmptyAttribute).Value;
-            this._text = e.Value.Trim('\r', '\n');
+            this.phonetics = e.Attribute("f")?.Value ?? "";
+            this.text = e.Value.Trim('\r', '\n');
             if (e.Attribute("b")?.Value is { } bval)
             {
                 if (int.TryParse(bval, out int ms))
@@ -126,9 +200,9 @@ namespace TranscriptionCore
                     .Union(new[]{
                     new XAttribute("b", Begin),
                     new XAttribute("e", End),
-                    new XAttribute("f", _phonetics),
+                    new XAttribute("f", phonetics),
                     }),
-                    _text.Trim('\r', '\n')
+                    text.Trim('\r', '\n')
             );
 
             return elm;
@@ -136,19 +210,22 @@ namespace TranscriptionCore
         #endregion
 
 
-        public TranscriptionPhrase(TranscriptionPhrase kopie)
+        public TranscriptionPhrase(TranscriptionPhrase kopie) : this()
         {
-            this._begin = kopie._begin;
-            this._end = kopie._end;
-            this._text = kopie._text;
-            this._phonetics = kopie._phonetics;
-            this.height = kopie.height;
+            begin = kopie.begin;
+            end = kopie.end;
+            text = kopie.text;
+            phonetics = kopie.phonetics;
+            Elements = kopie.Elements;
         }
 
         public TranscriptionPhrase()
             : base()
         {
-
+            Updates = new UpdateTracker()
+            {
+                ContentChanged = OnChange
+            };
         }
 
         public TranscriptionPhrase(TimeSpan begin, TimeSpan end, string aWords)
@@ -159,90 +236,94 @@ namespace TranscriptionCore
             this.Text = aWords;
         }
 
-        public TranscriptionPhrase(TimeSpan begin, TimeSpan end, string aWords, ElementType aElementType)
-            : this(begin, end, aWords)
+        internal void OnChange(IEnumerable<Undo> undos)
         {
+            Parent?.OnChange(undos.Select(u => u with { TranscriptionIndex = u.TranscriptionIndex with { PhraseIndex = ParentIndex } }));
         }
 
-        public override int GetTotalChildrenCount()
+        public UpdateTracker Updates { get; }
+
+        public TranscriptionParagraph? Parent { get; internal set; }
+        public int ParentIndex { get; internal set; }
+
+        /// <summary>
+        /// return next phrase in transcriptions
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public TranscriptionPhrase? Next(bool parentOnly = false)
         {
-            return 0;
+            if (Parent is null || parentOnly && ParentIndex == Parent.Phrases.Count - 1)
+                return null;
+
+            if (ParentIndex < Parent.Phrases.Count - 1)
+                return Parent.Phrases[ParentIndex + 1];
+
+            return Parent.EnumerateNext().FirstOrDefault(s => s.Phrases.Count > 1)?.Phrases[0];
+
         }
 
-        public override int AbsoluteIndex
+        /// <summary>
+        /// enumerate next phrase in transcription
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public IEnumerable<TranscriptionPhrase> EnumerateNext(bool parentOnly = false)
         {
-            get
+            int indx = ParentIndex + 1;
+            TranscriptionParagraph? par = Parent;
+
+            while (par is { })
             {
-                return -1;
+                for (int i = indx; i < par.Phrases.Count; i++)
+                    yield return par.Phrases[i];
+
+                if (parentOnly)
+                    yield break;
+
+                par = par.Next();
+                indx = 0;
             }
         }
 
-        public override void Add(TranscriptionElement data)
+        /// <summary>
+        /// return previous phrase in transcriptions
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public TranscriptionPhrase? Previous(bool parentOnly = false)
         {
-            throw new NotSupportedException();
+            if (Parent is null || parentOnly && ParentIndex <= 0)
+                return null;
+
+            if (ParentIndex > 0)
+                return Parent.Phrases[ParentIndex - 1];
+
+            return Parent.EnumeratePrevious().FirstOrDefault(s => s.Phrases.Count > 1)?.Phrases[^1];
+
         }
 
-        public override bool Remove(TranscriptionElement value)
+        /// <summary>
+        /// enumerate previous phrases in transcription
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public IEnumerable<TranscriptionPhrase> EnumeratePrevious(bool parentOnly = false)
         {
-            throw new NotSupportedException();
-        }
+            int indx = this.ParentIndex - 1;
+            TranscriptionParagraph? par = Parent;
 
-        public override void RemoveAt(int index)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override bool Replace(TranscriptionElement oldelement, TranscriptionElement newelement)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Insert(int index, TranscriptionElement data)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override TranscriptionElement this[int Index]
-        {
-            get
+            while (par is { })
             {
-                throw new NotSupportedException();
-            }
-            set
-            {
-                throw new NotSupportedException();
-            }
-        }
+                for (int i = indx; i >= 0; i--)
+                    yield return par.Phrases[i];
 
-        public override string InnerText
-        {
-            get
-            {
-                return Text;
-            }
-        }
+                if (parentOnly)
+                    yield break;
 
-        public override TranscriptionElement this[TranscriptionIndex index]
-        {
-            get
-            {
-                throw new NotImplementedException();
+                par = par.Previous();
+                indx = par.Phrases.Count - 1;
             }
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public override void RemoveAt(TranscriptionIndex index)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void Insert(TranscriptionIndex index, TranscriptionElement value)
-        {
-            throw new NotImplementedException();
         }
     }
-
 }

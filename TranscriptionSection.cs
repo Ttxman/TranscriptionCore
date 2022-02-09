@@ -1,95 +1,95 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    //sekce textu nadrazena odstavci
-    public class TranscriptionSection : TranscriptionElement
+    public class TranscriptionSection
     {
-        string _text = "";
-        public override string Text
+        public bool Revert(Undo act)
         {
-            get { return _text; }
-            set
+            switch (act)
             {
-                var oldv = _text;
-                _text = value;
-                OnContentChanged(new TextAction(this, this.TranscriptionIndex, this.AbsoluteIndex, oldv));
+                case NameChanged nc:
+                    Name = nc.Old;
+                    return true;
+                case CustomElementsChanged cec:
+                    Elements = cec.Old;
+                    return true;
             }
+            return false;
         }
 
-        public override string Phonetics
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
-            set
-            {
-                throw new NotImplementedException();
-            }
-        }
+        private record NameChanged(string Old) : Undo;
+        public record CustomElementsChanged(ImmutableDictionary<string, string> Old) : Undo;
 
+        string name = "";
         public string Name
         {
-            get
-            {
-                return Text;
-            }
+            get => name;
             set
             {
-                Text = value;
+                var old = name;
+                name = value;
+                Updates.OnContentChanged(new NameChanged(old));
             }
         }
 
+        public UndoableCollection<TranscriptionParagraph> Paragraphs;
 
-        private VirtualTypeList<TranscriptionParagraph> _Paragraphs;
-
-        public VirtualTypeList<TranscriptionParagraph> Paragraphs
+        private ImmutableDictionary<string, string> elements = ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
+        public ImmutableDictionary<string, string> Elements
         {
-            get { return _Paragraphs; }
-            private set { _Paragraphs = value; }
+
+            get => elements;
+            set
+            {
+                var oldv = elements;
+                elements = value;
+                Updates.OnContentChanged(new CustomElementsChanged(oldv));
+            }
         }
 
-
-
-        public int Speaker;
-
-
-
-
         #region serializace nova
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
         public static TranscriptionSection DeserializeV2(XElement e, bool isStrict)
         {
             TranscriptionSection tsec = new TranscriptionSection();
-            tsec.Name = e.Attribute("name").Value;
-            tsec.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            tsec.Paragraphs.Update.BeginUpdate(false);
+            tsec.Name = e.Attribute("name")?.Value ?? "";
+            tsec.Elements = tsec.Elements.AddRange
+            (
+                e.Attributes()
+                .Where(a => a.Name.LocalName != "name")
+                .Select(a => new KeyValuePair<string, string>(a.Name.LocalName, a.Value))
+            );
             tsec.Elements.Remove("name");
-            foreach (var p in e.Elements(isStrict ? "paragraph" : "pa").Select(p => (TranscriptionElement)TranscriptionParagraph.DeserializeV2(p, isStrict)))
-                tsec.Add(p);
 
+            foreach (var p in e.Elements(isStrict ? "paragraph" : "pa").Select(p => TranscriptionParagraph.DeserializeV2(p, isStrict)))
+                tsec.Paragraphs.Add(p);
+
+            tsec.Paragraphs.Update.EndUpdate();
             return tsec;
         }
 
-        public TranscriptionSection(XElement e)
+        public TranscriptionSection(XElement e) : this()
         {
-            this.Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
-            Name = e.Attribute("name").Value;
-            Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Elements.Remove("name");
-            foreach (var p in e.Elements("pa").Select(p => (TranscriptionElement)new TranscriptionParagraph(p)))
-                Add(p);
+            Name = e.Attribute("name")?.Value ?? "";
+            Elements = Elements.AddRange
+            (
+                e.Attributes()
+                .Where(a => a.Name.LocalName != "name")
+                .Select(a => new KeyValuePair<string, string>(a.Name.LocalName, a.Value))
+            );
+            foreach (var p in e.Elements("pa").Select(p => new TranscriptionParagraph(p)))
+                Paragraphs.Add(p);
 
         }
 
         public XElement Serialize()
         {
-
             XElement elm = new XElement("se", Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { new XAttribute("name", Name), }),
                 Paragraphs.Select(p => p.Serialize())
             );
@@ -106,141 +106,141 @@ namespace TranscriptionCore
         public TranscriptionSection(TranscriptionSection toCopy)
             : this()
         {
-            this.Begin = toCopy.Begin;
-            this.End = toCopy.End;
-            this.Name = toCopy.Name;
-            if (toCopy.Paragraphs is { })
-            {
-                this.Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
-                for (int i = 0; i < toCopy.Paragraphs.Count; i++)
-                {
-                    this.Paragraphs.Add(new TranscriptionParagraph(toCopy.Paragraphs[i]));
-                }
-            }
+            Name = toCopy.Name;
+            for (int i = 0; i < toCopy.Paragraphs.Count; i++)
+                Paragraphs.Add(new TranscriptionParagraph(toCopy.Paragraphs[i]));
         }
 
         public TranscriptionSection()
         {
-            Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
-            Begin = new TimeSpan(-1);
-            End = new TimeSpan(-1);
+            void childAdded(TranscriptionParagraph child, int index)
+            {
+                child.Parent = this;
+                child.ParentIndex = index;
+            }
+
+            void childRemoved(TranscriptionParagraph child)
+            {
+                child.Parent = null;
+                child.ParentIndex = -1;
+            }
+
+            Paragraphs = new UndoableCollection<TranscriptionParagraph>()
+            {
+                OnAdd = childAdded,
+                OnRemoved = childRemoved
+            };
+
+            Paragraphs.Update.ContentChanged = OnChange;
+            Updates = new UpdateTracker()
+            {
+                ContentChanged = OnChange
+            };
         }
 
-        public TranscriptionSection(String aName)
-            : this(aName, new TimeSpan(-1), new TimeSpan(-1))
+        internal void OnChange(IEnumerable<Undo> undos)
         {
+            /*Parent.OnChange(*/
+            undos.Select(u => u with { TranscriptionIndex = u.TranscriptionIndex with { Sectionindex = ParentIndex } });
+            //);
         }
-        public TranscriptionSection(String aName, TimeSpan aBegin, TimeSpan aEnd)
+
+        public TranscriptionSection(string aName)
             : this()
         {
-            this.Name = aName;
-            this.Begin = aBegin;
-            this.End = aEnd;
+            name = aName;
         }
 
-        public override int GetTotalChildrenCount()
-        {
-            return _children.Count;
-        }
-
-        public override int AbsoluteIndex
+        public string InnerText
         {
             get
             {
-
-                if (_Parent is { })
-                {
-
-                    int sum = _Parent.AbsoluteIndex;//parent absolute index index
-                    sum += _Parent.Children.Take(this.ParentIndex) //take previous siblings
-                        .Sum(s => s.GetTotalChildrenCount()); //+ all pre siblings counts (index on sublayers)
-
-                    sum += ParentIndex; //+ parent index (index on sibling layer)
-                    //... sum = all previous
-
-                    sum++;//+1 - this
-                    // this.Text = sum.ToString();
-                    return sum;
-
-                }
-
-                return 0;
+                return Name + "\r\n" + string.Join("\r\n", Paragraphs.Select(c => c.Text));
             }
         }
 
-        public override string InnerText
+        public UpdateTracker Updates { get; }
+        public TranscriptionChapter? Parent { get; internal set; }
+        public int ParentIndex { get; internal set; }
+
+        /// <summary>
+        /// return next sections in transcriptions
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public TranscriptionSection? Next(bool parentOnly = false)
         {
-            get
+            if (Parent is null || parentOnly && ParentIndex == Parent.Sections.Count - 1)
+                return null;
+
+            if (ParentIndex < Parent.Sections.Count - 1)
+                return Parent.Sections[ParentIndex + 1];
+
+            return Parent.EnumerateNext().FirstOrDefault(s => s.Sections.Count > 1)?.Sections[0];
+
+        }
+
+        /// <summary>
+        /// enumerate next sections in transcription
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public IEnumerable<TranscriptionSection> EnumerateNext(bool parentOnly = false)
+        {
+            int indx = this.ParentIndex + 1;
+            TranscriptionChapter? chp = Parent;
+
+            while (chp is { })
             {
-                return Name + "\r\n" + string.Join("\r\n", Children.Select(c => c.Text));
+                for (int i = indx; i < chp.Sections.Count; i++)
+                    yield return chp.Sections[i];
+
+                if (parentOnly)
+                    yield break;
+
+                chp = chp.Next();
+                indx = 0;
             }
         }
 
-
-        public override TranscriptionElement this[TranscriptionIndex index]
+        /// <summary>
+        /// return previous section in transcriptions
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public TranscriptionSection? Previous(bool parentOnly = false)
         {
-            get
-            {
-                ValidateIndexOrThrow(index);
+            if (Parent is null || parentOnly && ParentIndex <= 0)
+                return null;
 
-                if (index.IsParagraphIndex)
-                {
-                    if (index.IsPhraseIndex)
-                        return Paragraphs[index.ParagraphIndex][index];
+            if (ParentIndex > 0)
+                return Parent.Sections[ParentIndex - 1];
 
-                    return Paragraphs[index.ParagraphIndex];
-                }
+            return Parent.EnumeratePrevious().FirstOrDefault(s => s.Sections.Count > 1)?.Sections[^1];
 
-                throw new IndexOutOfRangeException("index");
-            }
-            set
-            {
-                ValidateIndexOrThrow(index);
-
-                if (index.IsParagraphIndex)
-                {
-                    if (index.IsPhraseIndex)
-                        Paragraphs[index.ParagraphIndex][index] = value;
-                    else
-                        Paragraphs[index.ParagraphIndex] = (TranscriptionParagraph)value;
-                }
-                else
-                {
-                    throw new IndexOutOfRangeException("index");
-                }
-
-            }
         }
 
-        public override void RemoveAt(TranscriptionIndex index)
+        /// <summary>
+        /// enumerate previous sections in transcription
+        /// </summary>
+        /// <param name="parentOnly">search only in parent</param>
+        /// <returns></returns>
+        public IEnumerable<TranscriptionSection> EnumeratePrevious(bool parentOnly = false)
         {
-            ValidateIndexOrThrow(index);
-            if (index.IsParagraphIndex)
-            {
-                if (index.IsPhraseIndex)
-                    Paragraphs[index.ParagraphIndex].RemoveAt(index);
-                else
-                    Paragraphs.RemoveAt(index.ParagraphIndex);
-            }
-            else
-            {
-                throw new IndexOutOfRangeException("index");
-            }
-        }
+            int indx = this.ParentIndex - 1;
+            TranscriptionChapter? chp = Parent;
 
-        public override void Insert(TranscriptionIndex index, TranscriptionElement value)
-        {
-            ValidateIndexOrThrow(index);
-            if (index.IsParagraphIndex)
+            while (chp is { })
             {
-                if (index.IsPhraseIndex)
-                    Paragraphs[index.ParagraphIndex].Insert(index, value);
-                else
-                    Paragraphs.Insert(index.ParagraphIndex, (TranscriptionParagraph)value);
-            }
-            else
-            {
-                throw new IndexOutOfRangeException("index");
+                for (int i = indx; i >= 0; i--)
+                    yield return chp.Sections[i];
+
+                if (parentOnly)
+                    yield break;
+
+                chp = chp.Previous();
+                if (chp is { })
+                    indx = chp.Sections.Count - 1;
             }
         }
     }
