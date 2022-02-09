@@ -11,23 +11,11 @@ namespace TranscriptionCore
     /// <summary>
     /// custom text based value for speaker V3+
     /// </summary>
-    public class SpeakerAttribute
+    public record SpeakerAttribute(string Name, string Value, DateTime Date)
     {
-        public string ID { get; set; }
-        public string Name { get; set; }
-        public string Value { get; set; }
-        public DateTime Date { get; set; }
-
-        public SpeakerAttribute(string id, string name, string value)
+        public static SpeakerAttribute Deserialize(XElement elm)
         {
-            ID = id;
-            Name = name;
-            Value = value;
-        }
-
-        public SpeakerAttribute(XElement elm)
-        {
-            this.Name = elm.Attribute("name").Value;
+            var name = elm.Attribute("name")!.Value;
 
             DateTime date = default;
 
@@ -45,17 +33,8 @@ namespace TranscriptionCore
                         date = DateTime.Now;
                 }
             }
-            this.Date = date;
-            this.Value = elm.Value;
-        }
 
-        //copy constructor
-        public SpeakerAttribute(SpeakerAttribute a)
-        {
-            this.ID = a.ID;
-            this.Name = a.Name;
-            this.Value = a.Value;
-            this.Date = a.Date;
+            return new SpeakerAttribute(name, elm.Value, date);
         }
 
         public XElement Serialize()

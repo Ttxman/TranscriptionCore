@@ -169,14 +169,13 @@ namespace TranscriptionCore
 
         private int _internalID = Speaker.DefaultID;
 
-        /// <summary>
-        /// Used only for speaker identification when serializing or deserializing, can change unexpectedly
-        /// </summary>
+
+        [Obsolete("Used only for speaker identification when serializing or deserializing")]
         internal int InternalID
         {
             get
             {
-                if (_speaker is null)
+                if (_speaker == Speaker.DefaultSpeaker)
                     return _internalID;
                 else
                     return _speaker.SerializationID;
@@ -189,7 +188,7 @@ namespace TranscriptionCore
             }
         }
 
-        Speaker _speaker = null;
+        Speaker _speaker = Speaker.DefaultSpeaker;
         public Speaker Speaker
         {
             get
@@ -244,7 +243,7 @@ namespace TranscriptionCore
         public static TranscriptionParagraph DeserializeV2(XElement e, bool isStrict)
         {
             TranscriptionParagraph par = new TranscriptionParagraph();
-            par._internalID = int.Parse(e.Attribute(isStrict ? "speakerid" : "s")?.Value);
+            par._internalID = int.Parse(e.Attribute(isStrict ? "speakerid" : "s")!.Value);
 
             if (e.Attribute(isStrict ? "attributes" : "a")?.Value is { } astring)
                 par.attributes = par.attributes.Union(astring.Split('|'));
@@ -285,7 +284,7 @@ namespace TranscriptionCore
             if (!e.CheckRequiredAtributes("b", "e", "s"))
                 throw new ArgumentException("required attribute missing on paragraph (b,e,s)");
 
-            _internalID = int.Parse(e.Attribute("s").Value);
+            _internalID = int.Parse(e.Attribute("s")!.Value);
             if (e.Attribute("a")?.Value is { } astring)
                 attributes = attributes.Union(astring.Split('|'));
 
@@ -332,7 +331,9 @@ namespace TranscriptionCore
                     new XAttribute("b", Begin),
                     new XAttribute("e", End),
                     new XAttribute("a", string.Join('|',Attributes)),
+#pragma warning disable CS0618 // Type or member is obsolete
                     new XAttribute("s", InternalID), //DO NOT use _speakerID,  it is not equivalent
+#pragma warning restore CS0618 // Type or member is obsolete
                 }),
                 Phrases.Select(p => p.Serialize())
             );

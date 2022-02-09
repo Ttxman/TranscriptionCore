@@ -162,9 +162,9 @@ namespace TranscriptionCore
 
             sp.Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
-            if (sp.Elements.TryGetValue("comment", out string rem))
+            if (sp.Elements.TryGetValue("comment", out string? rem))
             {
-                SpeakerAttribute sa = new SpeakerAttribute("comment", "comment", rem);
+                SpeakerAttribute sa = new SpeakerAttribute("comment", rem, default);
                 sp.Attributes.Add(sa);
             }
 
@@ -204,7 +204,7 @@ namespace TranscriptionCore
             //merges
             this.Merges.AddRange(s.Elements("m").Select(m => new DBMerge(m.Attribute("dbid").Value, stringToDBType(m.Attribute("dbtype").Value))));
 
-            Attributes.AddRange(s.Elements("a").Select(e => new SpeakerAttribute(e)));
+            Attributes.AddRange(s.Elements("a").Select(e => SpeakerAttribute.Deserialize(e)));
 
             Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
@@ -297,7 +297,7 @@ namespace TranscriptionCore
             XElement elm = new XElement("s",
                 Elements.Select(e =>
                     new XAttribute(e.Key, e.Value))
-                    .Union(new[]{ 
+                    .Union(new[]{
                     new XAttribute("id", SerializationID.ToString()),
                     new XAttribute("surname",Surname),
                     new XAttribute("firstname",FirstName),
@@ -413,8 +413,8 @@ namespace TranscriptionCore
             return FullName + " (" + DefaultLang + ")";
         }
 
-        public static readonly int DefaultID = Constants.DefailtSpeakerId;
-        public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
+        public static readonly int DefaultID = Constants.DefaultSpeakerId;
+        public static readonly Speaker DefaultSpeaker = Constants.DefailtSpeaker;
 
         /// <summary>
         /// copies all info, and generates new DBI and ID .... (deep copy)
@@ -438,7 +438,7 @@ namespace TranscriptionCore
         {
             get
             {
-                if (_dbid == null && DBType!=DBType.File)
+                if (_dbid == null && DBType != DBType.File)
                 {
                     _dbid = Guid.NewGuid().ToString();
                 }

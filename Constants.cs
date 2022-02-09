@@ -13,6 +13,7 @@ namespace TranscriptionCore
 
         public static readonly ImmutableHashSet<string> IgnoreCaseHashset = ImmutableHashSet.Create<string>(StringComparer.OrdinalIgnoreCase);
 
-        public static readonly int DefailtSpeakerId = int.MinValue;
+        public static readonly int DefaultSpeakerId = int.MinValue;
+        internal static readonly Speaker DefailtSpeaker = new Speaker() { SerializationID = DefaultSpeakerId, DBID = new Guid().ToString() };
     }
 }

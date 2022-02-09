@@ -322,6 +322,9 @@ namespace TranscriptionCore
                     yield break;
 
                 par = par.Previous();
+                if (par is null)
+                    break;
+
                 indx = par.Phrases.Count - 1;
             }
         }

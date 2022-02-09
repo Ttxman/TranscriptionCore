@@ -12,7 +12,7 @@ namespace TranscriptionCore
     /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
     /// </summary>
     /// <returns></returns>
-    public class SpeakerCollection : IList<Speaker>
+    public class SpeakerCollection : UndoableCollection<Speaker>
     {
         protected string _fileName;
         public string FileName
@@ -21,19 +21,36 @@ namespace TranscriptionCore
             set { _fileName = value; }
         }
 
-        protected List<Speaker> _Speakers = new List<Speaker>();
-
 
         protected Dictionary<string, string> elements = new Dictionary<string, string>();
         public SpeakerCollection(XElement e)
         {
             elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            _Speakers = e.Elements("s").Select(s => new Speaker(s)).ToList();
+
+            Update.BeginUpdate();
+            try
+            {
+                foreach (var spkr in e.Elements("s").Select(x => new Speaker(x)))
+                    this.Add(spkr);
+            }
+            finally
+            {
+                Update.EndUpdate();
+            }
         }
 
         public SpeakerCollection(IEnumerable<Speaker> speakers)
         {
-            _Speakers = speakers.ToList();
+            Update.BeginUpdate();
+            try
+            {
+                foreach (var spkr in speakers)
+                    this.Add(spkr);
+            }
+            finally
+            {
+                Update.EndUpdate();
+            }
         }
 
         /// <summary>
@@ -44,33 +61,26 @@ namespace TranscriptionCore
         {
             if (aSpeakers is null)
                 throw new ArgumentNullException(nameof(aSpeakers));
-            this._fileName = aSpeakers._fileName;
-            this._Speakers = aSpeakers._Speakers.Select(s => s.Copy()).ToList();
+
+            _fileName = aSpeakers._fileName;
+            foreach (var spkr in aSpeakers.Select(s => s.Copy()))
+                this.Add(spkr);
         }
 
         public SpeakerCollection()
         {
 
         }
-        /// <summary>
-        /// remove speaker from list - NOT FROM TRANSCRIPTION !!!!
-        /// </summary>
-        /// <param name="aSpeaker"></param>
-        /// <returns></returns>
-        public bool RemoveSpeaker(Speaker aSpeaker)
+
+
+        public Speaker? GetSpeakerByDBID(string dbid)
         {
-            return _Speakers.Remove(aSpeaker);
+            return this.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m => m.DBID == dbid));
         }
 
-
-        public Speaker GetSpeakerByDBID(string dbid)
+        public Speaker? GetSpeakerByName(string fullname)
         {
-            return _Speakers.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m => m.DBID == dbid));
-        }
-
-        public Speaker GetSpeakerByName(string fullname)
-        {
-            return _Speakers.FirstOrDefault(s => s.FullName == fullname);
+            return this.FirstOrDefault(s => s.FullName == fullname);
         }
 
         /// <summary>
@@ -82,7 +92,7 @@ namespace TranscriptionCore
         {
             XElement elm = new XElement("sp",
                 elements.Select(e => new XAttribute(e.Key, e.Value)),
-                _Speakers.Select(s => s.Serialize(saveAll))
+                this.Select(s => s.Serialize(saveAll))
             );
 
             return elm;
@@ -124,58 +134,71 @@ namespace TranscriptionCore
             store._fileName = filename;
             XDocument doc = XDocument.Load(filename);
 
+            if (doc.Root is null)
+                return;
 
-            if (doc.Root.Name == "MySpeakers") //old format from XmlSerializer
+            store.Update.BeginUpdate(false);
+            try
             {
-                #region old format
-                var root = doc.Root;
-                var speakers = root.Elements("Speakers").Elements("Speaker");
-                foreach (var sp in speakers)
+
+                if (doc.Root.Name == "MySpeakers") //old format from XmlSerializer
                 {
-                    Speaker speaker = new Speaker();
-
-                    var id = sp.Element("ID");
-                    var fname = sp.Element("FirstName");
-                    var sname = sp.Element("Surname");
-                    var sex = sp.Element("Sex");
-                    var comment = sp.Element("Comment");
-                    var lang = sp.Element("DefaultLang");
-
-                    if (id is { })
-                        speaker.SerializationID = XmlConvert.ToInt32(id.Value);
-                    else
-                        continue;
-
-                    speaker.DBID = Guid.NewGuid().ToString();
-                    speaker.FirstName = fname.Value ?? "";
-                    speaker.Surname = sname.Value ?? "";
-
-                    speaker.Sex = sex.Value.ToLower() switch
+                    #region old format
+                    var root = doc.Root;
+                    var speakers = root.Elements("Speakers").Elements("Speaker");
+                    foreach (var sp in speakers)
                     {
-                        "m" or "muž" or "male" => Speaker.Sexes.Male,
-                        "f" or "žena" or "female" => Speaker.Sexes.Female,
-                        _ => Speaker.Sexes.X,
-                    };
-                    if (comment is { } && !string.IsNullOrWhiteSpace(comment.Value))
-                        speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
+                        Speaker speaker = new Speaker();
+
+                        var id = sp.Element("ID");
+                        var fname = sp.Element("FirstName");
+                        var sname = sp.Element("Surname");
+                        var sex = sp.Element("Sex");
+                        var comment = sp.Element("Comment");
+                        var lang = sp.Element("DefaultLang");
+
+                        if (id is { })
+                            speaker.SerializationID = XmlConvert.ToInt32(id.Value);
+                        else
+                            continue;
+
+                        speaker.DBID = Guid.NewGuid().ToString();
+                        speaker.FirstName = fname?.Value ?? "";
+                        speaker.Surname = sname?.Value ?? "";
+
+                        speaker.Sex = sex?.Value?.ToLower() switch
+                        {
+                            "m" or "muž" or "male" => Speaker.Sexes.Male,
+                            "f" or "žena" or "female" => Speaker.Sexes.Female,
+                            _ => Speaker.Sexes.X,
+                        };
+                        if (comment is { } && !string.IsNullOrWhiteSpace(comment.Value))
+                            speaker.Attributes.Add(new SpeakerAttribute("comment", comment.Value, default));
 
 
-                    if (int.TryParse(lang.Value, out int vvvv) && vvvv < Speaker.Langs.Count)
-                    {
-                        speaker.DefaultLang = Speaker.Langs[vvvv];
+                        if (int.TryParse(lang?.Value, out int vvvv) && vvvv < Speaker.Langs.Count)
+                        {
+                            speaker.DefaultLang = Speaker.Langs[vvvv];
+                        }
+                        else
+                        {
+                            speaker.DefaultLang = lang?.Value ?? Speaker.Langs[0];
+                        }
+                        store.Add(speaker);
                     }
-                    else
-                    {
-                        speaker.DefaultLang = lang.Value ?? Speaker.Langs[0];
-                    }
-                    store.Add(speaker);
+                    #endregion
                 }
-                #endregion
+                else
+                {
+                    foreach (var spkr in doc.Root.Elements("s").Select(x => new Speaker(x)))
+                        store.Add(spkr);
+
+                    store.Initialize(doc);
+                }
             }
-            else
+            finally
             {
-                store._Speakers = doc.Root.Elements("s").Select(x => new Speaker(x)).ToList();
-                store.Initialize(doc);
+                store.Update.EndUpdate();
             }
         }
 
@@ -191,84 +214,6 @@ namespace TranscriptionCore
         public SpeakerCollection(string filename)
         {
             SpeakerCollection.Deserialize(filename, this);
-        }
-
-
-        public int IndexOf(Speaker item)
-        {
-            return _Speakers.IndexOf(item);
-        }
-
-        public virtual void Insert(int index, Speaker item)
-        {
-            _Speakers.Insert(index, item);
-        }
-
-        public virtual void RemoveAt(int index)
-        {
-            _Speakers.RemoveAt(index);
-        }
-
-        public Speaker this[int index]
-        {
-            get
-            {
-                return _Speakers[index];
-            }
-            set
-            {
-                _Speakers[index] = value;
-            }
-        }
-
-        public virtual void Add(Speaker item)
-        {
-            _Speakers.Add(item);
-        }
-
-        public virtual void Clear()
-        {
-            _Speakers.Clear();
-        }
-
-        public bool Contains(Speaker item)
-        {
-            return _Speakers.Contains(item);
-        }
-
-        public void CopyTo(Speaker[] array, int arrayIndex)
-        {
-            _Speakers.CopyTo(array, arrayIndex);
-        }
-
-        public int Count
-        {
-            get { return _Speakers.Count; }
-        }
-
-        public bool IsReadOnly
-        {
-            get { return false; }
-        }
-
-        public virtual bool Remove(Speaker item)
-        {
-            return _Speakers.Remove(item);
-        }
-
-        public IEnumerator<Speaker> GetEnumerator()
-        {
-            return _Speakers.GetEnumerator();
-        }
-
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return _Speakers.GetEnumerator();
-        }
-
-        public virtual void AddRange(IEnumerable<Speaker> enumerable)
-        {
-            _Speakers.AddRange(enumerable);
         }
     }
 }

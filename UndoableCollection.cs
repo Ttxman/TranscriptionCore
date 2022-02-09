@@ -7,7 +7,7 @@ using System.Text;
 
 namespace TranscriptionCore
 {
-    public sealed class UndoableCollection<T> : IList<T>
+    public class UndoableCollection<T> : IList<T>
     {
         public bool Revert(Undo act)
         {
@@ -141,8 +141,8 @@ namespace TranscriptionCore
         IEnumerator IEnumerable.GetEnumerator()
             => GetEnumerator();
 
-        public Action<T, int> OnAdd { get; set; }
-        public Action<T> OnRemoved { get; set; }
+        public Action<T, int>? OnAdd { get; set; }
+        public Action<T>? OnRemoved { get; set; }
     }
 
 }
