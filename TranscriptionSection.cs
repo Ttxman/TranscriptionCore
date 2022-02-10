@@ -53,7 +53,6 @@ namespace TranscriptionCore
             }
         }
 
-        #region serializace nova
         public static TranscriptionSection DeserializeV2(XElement e, bool isStrict)
         {
             TranscriptionSection tsec = new TranscriptionSection();
@@ -96,8 +95,6 @@ namespace TranscriptionCore
 
             return elm;
         }
-        #endregion
-
 
         /// <summary>
         /// copy constructor

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -146,17 +147,16 @@ namespace TranscriptionCore
             into.DefaultLang = from.DefaultLang;
             into.Sex = from.Sex;
             into.ImgBase64 = from.ImgBase64;
-            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
+            into.Merges = into.Merges.AddRange(from.Merges);
 
             if (from.DataBaseID.DBType != DBType.File && into.DataBaseID.DBID != from.DataBaseID.DBID)
-                into.Merges.Add(new DBMerge(from.DataBaseID.DBType, from.DataBaseID.DBID));
+                into.Merges = into.Merges.Add(new DBMerge(from.DataBaseID.DBType, from.DataBaseID.DBID));
 
 
             into.Attributes = into.Attributes
-                .Concat(from.Attributes).GroupBy(a => a.Name)
-                .SelectMany(g => g.Distinct(new Speaker.AttributeComparer()))
-                .ToList();
-
+                 .Concat(from.Attributes).GroupBy(a => a.Name)
+                 .SelectMany(g => g.Distinct(new Speaker.AttributeComparer()))
+                 .ToImmutableArray();
         }
     }
 }

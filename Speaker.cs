@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Xml;
@@ -12,21 +14,74 @@ namespace TranscriptionCore
     {
         public bool Revert(Undo act)
         {
-            //switch (act)
-            //{
-            //    case NameChanged nc:
-            //        Name = nc.Old;
-            //        return true;
-            //    case CustomElementsChanged cec:
-            //        Elements = cec.Old;
-            //        return true;
-            //}
+            if (act is SpeakerUndo)
+            {
+                switch (act)
+                {
+                    case PinnedChanged c:
+                        PinnedToDocument = c.Old;
+                        return true;
+                    case FirstNameChanged c:
+                        FirstName = c.Old;
+                        return true;
+                    case MiddleNameChanged c:
+                        MiddleName = c.Old;
+                        return true;
+                    case SurnameChanged c:
+                        Surname = c.Old;
+                        return true;
+                    case SexChanged c:
+                        Sex = c.Old;
+                        return true;
+                    case CustomElementsChanged c:
+                        Elements = c.Old;
+                        return true;
+                    case ImgBase64Changed c:
+                        ImgBase64 = c.Old;
+                        return true;
+                    case DefaultLangChanged c:
+                        DefaultLang = c.Old;
+                        return true;
+                    case DegreeBeforeChanged c:
+                        DegreeBefore = c.Old;
+                        return true;
+                    case DegreeAfterChanged c:
+                        DegreeAfter = c.Old;
+                        return true;
+                    case DatabaseIdChanged c:
+                        DataBaseID = c.Old;
+                        return true;
+                    case SynchronizedChanged c:
+                        Synchronized = c.Old;
+                        return true;
+                    case MergesChanged c:
+                        Merges = c.Old;
+                        return true;
+
+                }
+            }
             return false;
         }
+        public record SpeakerUndo : Undo;
+        public record CustomElementsChanged(ImmutableDictionary<string, string> Old) : SpeakerUndo;
+        public record PinnedChanged(bool Old) : SpeakerUndo;
+        public record FirstNameChanged(string Old) : SpeakerUndo;
+        public record MiddleNameChanged(string? Old) : SpeakerUndo;
+        public record SurnameChanged(string Old) : SpeakerUndo;
+        public record SexChanged(Sexes Old) : SpeakerUndo;
+
+        public record ImgBase64Changed(string? Old) : SpeakerUndo;
+        public record DefaultLangChanged(string Old) : SpeakerUndo;
+        public record DegreeBeforeChanged(string? Old) : SpeakerUndo;
+        public record DegreeAfterChanged(string? Old) : SpeakerUndo;
+        public record DatabaseIdChanged(DBMerge Old) : SpeakerUndo;
+        public record SynchronizedChanged(DateTime Old) : SpeakerUndo;
+        public record MergesChanged(ImmutableArray<DBMerge> Old) : SpeakerUndo;
+
         public UpdateTracker Updates { get; }
 
 
-        public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
+        public ImmutableArray<SpeakerAttribute> Attributes = ImmutableArray<SpeakerAttribute>.Empty;
 
         private bool _PinnedToDocument = false;
         /// <summary>
@@ -34,19 +89,17 @@ namespace TranscriptionCore
         /// </summary>
         public bool PinnedToDocument
         {
-            get { return _PinnedToDocument; }
+            get => _PinnedToDocument;
             set
             {
+                var oldv = _PinnedToDocument;
+                Updates.OnContentChanged(new PinnedChanged(oldv));
                 _PinnedToDocument = value;
             }
         }
 
         [Obsolete("Serialization ID, Changed when Transcription is serialized.For user ID use DBID property")]
-        internal int SerializationID
-        {
-            get;
-            set;
-        } = DefaultID;
+        internal int SerializationID { get; set; } = DefaultID;
 
 
         public static string GetFullName(string FirstName, string? MiddleName, string Surname)
@@ -90,54 +143,140 @@ namespace TranscriptionCore
         }
 
         private string _firstName = "";
+        [AllowNull]
         public string FirstName
         {
-            get
-            {
-                return _firstName;
-            }
+            get => _firstName;
 
             set
             {
+                var oldv = _firstName;
                 _firstName = value ?? "";
+                Updates.OnContentChanged(new FirstNameChanged(oldv));
             }
         }
         private string _surName = "";
         public string Surname
         {
-            get
-            {
-                return _surName;
-            }
+            get => _surName;
 
             set
             {
+                var oldv = _surName;
                 _surName = value ?? "";
+                Updates.OnContentChanged(new SurnameChanged(oldv));
             }
         }
-        public Sexes Sex;
 
-        public string? ImgBase64;
+        private Sexes sex;
+        public Sexes Sex
+        {
+            get => sex;
+            set
+            {
+                var oldv = sex;
+                sex = value;
+                Updates.OnContentChanged(new SexChanged(oldv));
+            }
+        }
 
-        string? _defaultLang = null;
+
+        private string? imgBase64;
+        public string? ImgBase64
+        {
+            get => imgBase64;
+            set
+            {
+                var oldv = imgBase64;
+                imgBase64 = value;
+                Updates.OnContentChanged(new ImgBase64Changed(oldv));
+            }
+        }
+
+        string _defaultLang = "";
         public string DefaultLang
         {
-            get
-            {
-                return _defaultLang ?? Langs[0];
-            }
+            get => _defaultLang;
 
             set
             {
+                var oldv = _defaultLang;
                 _defaultLang = value;
+                Updates.OnContentChanged(new DefaultLangChanged(oldv));
+            }
+        }
+
+        private string? middleName;
+        public string? MiddleName
+        {
+            get => middleName;
+            set
+            {
+                var oldv = middleName;
+                middleName = value;
+                Updates.OnContentChanged(new MiddleNameChanged(oldv));
+            }
+        }
+
+        private string? degreeBefore;
+
+        public string? DegreeBefore
+        {
+            get => degreeBefore;
+            set
+            {
+                var oldv = degreeBefore;
+                degreeBefore = value;
+                Updates.OnContentChanged(new DegreeBeforeChanged(oldv));
+            }
+        }
+        private string? degreeAfter;
+        public string? DegreeAfter
+        {
+            get => degreeAfter;
+            set
+            {
+                var oldv = degreeAfter;
+                degreeAfter = value;
+                Updates.OnContentChanged(new DegreeAfterChanged(oldv));
+            }
+        }
+
+        private DBMerge dataBaseID = Constants.DefaultSpeakerID;
+        public DBMerge DataBaseID
+        {
+            get => dataBaseID;
+            set
+            {
+                var oldv = dataBaseID;
+                dataBaseID = value;
+                Updates.OnContentChanged(new DatabaseIdChanged(oldv));
+            }
+        }
+        private DateTime synchronized;
+        public DateTime Synchronized
+        {
+            get => synchronized;
+            set
+            {
+                var oldv = synchronized;
+                synchronized = value;
+                Updates.OnContentChanged(new SynchronizedChanged(oldv));
             }
         }
 
 
-        public string? DegreeBefore;
-        public string? MiddleName;
-        public string? DegreeAfter;
-
+        private ImmutableArray<DBMerge> merges = ImmutableArray<DBMerge>.Empty;
+        public ImmutableArray<DBMerge> Merges
+        {
+            get => merges;
+            set
+            {
+                var oldv = merges;
+                merges = value;
+                Updates.OnContentChanged(new MergesChanged(oldv));
+            }
+        }
 
         public Speaker()
         {
@@ -145,7 +284,6 @@ namespace TranscriptionCore
             Surname = "";
             Sex = Sexes.X;
             ImgBase64 = null;
-            DefaultLang = Langs[0];
 
             Updates = new UpdateTracker()
             {
@@ -160,9 +298,20 @@ namespace TranscriptionCore
         }
 
 
+        private ImmutableDictionary<string, string> elements = ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        public static readonly List<string> Langs = new List<string> { "CZ", "SK", "RU", "HR", "PL", "EN", "DE", "ES", "IT", "CU", "--", "😃" };
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
+
+        public ImmutableDictionary<string, string> Elements
+        {
+
+            get => elements;
+            set
+            {
+                var oldv = elements;
+                elements = value;
+                Updates.OnContentChanged(new CustomElementsChanged(oldv));
+            }
+        }
 
         internal static Speaker DeserializeV2(XElement s, bool isStrict)
         {
@@ -184,30 +333,30 @@ namespace TranscriptionCore
                 _ => Sexes.X,
             };
 
-            sp.Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            var elms = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
-            if (sp.Elements.TryGetValue("comment", out string? rem))
+            if (elms.TryGetValue("comment", out string? rem))
             {
                 SpeakerAttribute sa = new SpeakerAttribute("comment", rem, default);
                 sp.Attributes.Add(sa);
             }
 
-            if (sp.Elements.TryGetValue("lang", out rem))
+            if (elms.TryGetValue("lang", out rem))
             {
-                int idx = Langs.IndexOf(rem);
                 sp.DefaultLang = rem;
             }
 
-            sp.Elements.Remove("id");
-            sp.Elements.Remove("firstname");
-            sp.Elements.Remove("surname");
-            sp.Elements.Remove("sex");
-            sp.Elements.Remove("comment");
-            sp.Elements.Remove("lang");
+            elms.Remove("id");
+            elms.Remove("firstname");
+            elms.Remove("surname");
+            elms.Remove("sex");
+            elms.Remove("comment");
+            elms.Remove("lang");
+
+            sp.Elements = sp.Elements.AddRange(elms);
 
             return sp;
         }
-        internal static CultureInfo csCulture = CultureInfo.CreateSpecificCulture("cs");
         public Speaker(XElement s) : this()//V3 format
         {
             if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
@@ -233,11 +382,11 @@ namespace TranscriptionCore
 
             Attributes.AddRange(s.Elements("a").Select(e => SpeakerAttribute.Deserialize(e)));
 
-            Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            var elms = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
             this.DataBaseID = DBMerge.Deserialize(s);
 
-            if (Elements.TryGetValue("synchronized", out var rem))
+            if (elms.TryGetValue("synchronized", out var rem))
             {
                 DateTime date;
                 if (!string.IsNullOrWhiteSpace(rem)) //i had to load big archive with empty synchronized attribute .. this is significant speedup
@@ -249,10 +398,7 @@ namespace TranscriptionCore
                     }
                     catch
                     {
-                        if (DateTime.TryParse(rem, csCulture, DateTimeStyles.None, out date))
-                            date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
-                        else
-                            date = DateTime.Now;
+                        date = DateTime.Now;
                     }
                 }
                 else
@@ -261,33 +407,35 @@ namespace TranscriptionCore
             }
 
 
-            if (Elements.TryGetValue("middlename", out rem))
+            if (elms.TryGetValue("middlename", out rem))
                 this.MiddleName = rem;
 
-            if (Elements.TryGetValue("degreebefore", out rem))
+            if (elms.TryGetValue("degreebefore", out rem))
                 this.DegreeBefore = rem;
 
-            if (Elements.TryGetValue("pinned", out rem))
+            if (elms.TryGetValue("pinned", out rem))
                 this.PinnedToDocument = XmlConvert.ToBoolean(rem);
 
-            if (Elements.TryGetValue("degreeafter", out rem))
+            if (elms.TryGetValue("degreeafter", out rem))
                 this.DegreeAfter = rem;
 
 
-            Elements.Remove("id");
-            Elements.Remove("surname");
-            Elements.Remove("firstname");
-            Elements.Remove("sex");
-            Elements.Remove("lang");
+            elms.Remove("id");
+            elms.Remove("surname");
+            elms.Remove("firstname");
+            elms.Remove("sex");
+            elms.Remove("lang");
 
-            Elements.Remove("dbid");
-            Elements.Remove("dbtype");
-            Elements.Remove("middlename");
-            Elements.Remove("degreebefore");
-            Elements.Remove("degreeafter");
-            Elements.Remove("synchronized");
+            elms.Remove("dbid");
+            elms.Remove("dbtype");
+            elms.Remove("middlename");
+            elms.Remove("degreebefore");
+            elms.Remove("degreeafter");
+            elms.Remove("synchronized");
 
-            Elements.Remove("pinned");
+            elms.Remove("pinned");
+
+            Elements.AddRange(elms);
         }
 
         /// <summary>
@@ -391,11 +539,5 @@ namespace TranscriptionCore
         {
             return new Speaker(this);
         }
-
-        public DBMerge DataBaseID { get; set; } = Constants.DefaultSpeakerID;
-
-        public DateTime Synchronized { get; set; }
-
-        public List<DBMerge> Merges = new List<DBMerge>();
     }
 }

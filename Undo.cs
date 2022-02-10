@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TranscriptionCore
 {
-    public record Undo
+    public abstract record Undo()
     {
         public TranscriptionIndex TranscriptionIndex;
     }
