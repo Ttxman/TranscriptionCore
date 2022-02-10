@@ -7,7 +7,7 @@ using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    public class TranscriptionSection
+    public class TranscriptionSection: IUpdateTracking
     {
         public bool Revert(Undo act)
         {
@@ -57,7 +57,7 @@ namespace TranscriptionCore
         public static TranscriptionSection DeserializeV2(XElement e, bool isStrict)
         {
             TranscriptionSection tsec = new TranscriptionSection();
-            tsec.Paragraphs.Update.BeginUpdate(false);
+            tsec.Paragraphs.Updates.BeginUpdate(false);
             tsec.Name = e.Attribute("name")?.Value ?? "";
             tsec.Elements = tsec.Elements.AddRange
             (
@@ -70,7 +70,7 @@ namespace TranscriptionCore
             foreach (var p in e.Elements(isStrict ? "paragraph" : "pa").Select(p => TranscriptionParagraph.DeserializeV2(p, isStrict)))
                 tsec.Paragraphs.Add(p);
 
-            tsec.Paragraphs.Update.EndUpdate();
+            tsec.Paragraphs.Updates.EndUpdate();
             return tsec;
         }
 
@@ -131,7 +131,7 @@ namespace TranscriptionCore
                 OnRemoved = childRemoved
             };
 
-            Paragraphs.Update.ContentChanged = OnChange;
+            Paragraphs.Updates.ContentChanged = OnChange;
             Updates = new UpdateTracker()
             {
                 ContentChanged = OnChange

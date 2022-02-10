@@ -7,9 +7,9 @@ using System.Text;
 
 namespace TranscriptionCore
 {
-    public class UndoableCollection<T> : IList<T>
+    public class UndoableCollection<T> : IList<T>, IUpdateTracking
     {
-        public bool Revert(Undo act)
+        public virtual bool Revert(Undo act)
         {
             if (act is UCChanged c)
             {
@@ -58,7 +58,7 @@ namespace TranscriptionCore
                     children[index] = value;
                     OnRemoved?.Invoke(old);
                     OnAdd?.Invoke(value, index);
-                    Update.OnContentChanged(new Replaced(index, old));
+                    Updates.OnContentChanged(new Replaced(index, old));
                 }
                 else if (children.Count == index)
                 {
@@ -72,7 +72,7 @@ namespace TranscriptionCore
         {
             children.Add(data);
             OnAdd?.Invoke(data, children.Count - 1);
-            Update.OnContentChanged(new Inserted(children.Count));
+            Updates.OnContentChanged(new Inserted(children.Count));
         }
 
         public void Insert(int index, T data)
@@ -82,7 +82,7 @@ namespace TranscriptionCore
 
             children.Insert(index, data);
             OnAdd?.Invoke(data, index);
-            Update.OnContentChanged(new Inserted(index));
+            Updates.OnContentChanged(new Inserted(index));
         }
 
 
@@ -94,7 +94,7 @@ namespace TranscriptionCore
             var old = children[index];
             children.RemoveAt(index);
             OnRemoved?.Invoke(old);
-            Update.OnContentChanged(new Removed(index, old));
+            Updates.OnContentChanged(new Removed(index, old));
         }
 
 
@@ -109,7 +109,7 @@ namespace TranscriptionCore
             return false;
         }
 
-        public UpdateTracker Update { get; } = new UpdateTracker();
+        public UpdateTracker Updates { get; } = new UpdateTracker();
 
         public int Count => children.Count;
 
@@ -121,12 +121,12 @@ namespace TranscriptionCore
 
         public void Clear()
         {
-            Update.BeginUpdate();
+            Updates.BeginUpdate();
             while (Count > 0)
                 RemoveAt(0);
 
             children.Clear();
-            Update.EndUpdate();
+            Updates.EndUpdate();
         }
 
         public bool Contains(T item)

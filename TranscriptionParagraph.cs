@@ -9,7 +9,7 @@ using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    public class TranscriptionParagraph
+    public class TranscriptionParagraph : IUpdateTracking
     {
         public bool Revert(Undo act)
         {
@@ -403,7 +403,7 @@ namespace TranscriptionCore
                 OnAdd = childAdded,
                 OnRemoved = childRemoved
             };
-            phrases.Update.ContentChanged = OnChange;
+            phrases.Updates.ContentChanged = OnChange;
             Updates = new UpdateTracker()
             {
                 ContentChanged = OnChange

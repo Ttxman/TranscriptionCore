@@ -8,8 +8,24 @@ using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    public class Speaker
+    public class Speaker : IUpdateTracking
     {
+        public bool Revert(Undo act)
+        {
+            //switch (act)
+            //{
+            //    case NameChanged nc:
+            //        Name = nc.Old;
+            //        return true;
+            //    case CustomElementsChanged cec:
+            //        Elements = cec.Old;
+            //        return true;
+            //}
+            return false;
+        }
+        public UpdateTracker Updates { get; }
+
+
         public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
 
         private bool _PinnedToDocument = false;
@@ -130,8 +146,19 @@ namespace TranscriptionCore
             Sex = Sexes.X;
             ImgBase64 = null;
             DefaultLang = Langs[0];
+
+            Updates = new UpdateTracker()
+            {
+                ContentChanged = OnChange
+            };
         }
-        #region serializace nova
+        internal void OnChange(IEnumerable<Undo> undos)
+        {
+            /*Parent.OnChange(*/
+            // undos.Select(u => u with { TranscriptionIndex = u.TranscriptionIndex with { Sectionindex = ParentIndex } });
+            //);
+        }
+
 
 
         public static readonly List<string> Langs = new List<string> { "CZ", "SK", "RU", "HR", "PL", "EN", "DE", "ES", "IT", "CU", "--", "😃" };
@@ -181,7 +208,7 @@ namespace TranscriptionCore
             return sp;
         }
         internal static CultureInfo csCulture = CultureInfo.CreateSpecificCulture("cs");
-        public Speaker(XElement s)//V3 format
+        public Speaker(XElement s) : this()//V3 format
         {
             if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
                 throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
@@ -312,7 +339,6 @@ namespace TranscriptionCore
 
             return elm;
         }
-        #endregion
 
         internal class AttributeComparer : IEqualityComparer<SpeakerAttribute>
         {
@@ -335,12 +361,12 @@ namespace TranscriptionCore
         /// copy constructor - copies all info, but with new DBID, ID ....
         /// </summary>
         /// <param name="s"></param>
-        private Speaker(Speaker s)
+        private Speaker(Speaker s) : this()
         {
             ToolsAndExtensions.MergeSpeakers(this, s);
         }
 
-        public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
+        public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) : this() //constructor ktery vytvori speakera
         {
             FirstName = aSpeakerFirstname;
             Surname = aSpeakerSurname;

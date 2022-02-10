@@ -13,7 +13,7 @@ namespace TranscriptionCore
     /// <summary>
     /// the smallest part of transcription with time tags.
     /// </summary>
-    public sealed class TranscriptionPhrase
+    public sealed class TranscriptionPhrase : IUpdateTracking
     {
         public bool Revert(Undo act)
         {

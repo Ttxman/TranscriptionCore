@@ -14,7 +14,7 @@ using System.Xml.Serialization;
 
 namespace TranscriptionCore
 {
-    public partial class Transcription
+    public partial class Transcription : IUpdateTracking
     {
         public bool Revert(Undo act)
         {
@@ -94,7 +94,7 @@ namespace TranscriptionCore
                 OnRemoved = childRemoved
             };
 
-            Chapters.Update.ContentChanged = OnChange;
+            Chapters.Updates.ContentChanged = OnChange;
             Updates = new UpdateTracker()
             {
                 ContentChanged = OnChange
@@ -119,10 +119,10 @@ namespace TranscriptionCore
             this.Created = toCopy.Created;
             if (toCopy.Chapters is { })
             {
-                Chapters.Update.BeginUpdate(false);
+                Chapters.Updates.BeginUpdate(false);
                 for (int i = 0; i < toCopy.Chapters.Count; i++)
                     Chapters.Add(new TranscriptionChapter(toCopy.Chapters[i]));
-                Chapters.Update.EndUpdate();
+                Chapters.Updates.EndUpdate();
             }
             this.FileName = toCopy.FileName;
             this._speakers = new SpeakerCollection(toCopy._speakers);

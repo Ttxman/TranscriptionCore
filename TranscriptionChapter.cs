@@ -7,7 +7,7 @@ using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    public class TranscriptionChapter
+    public class TranscriptionChapter : IUpdateTracking
     {
         public bool Revert(Undo act)
         {
@@ -130,7 +130,7 @@ namespace TranscriptionCore
                 OnRemoved = childRemoved
             };
 
-            Sections.Update.ContentChanged = OnChange;
+            Sections.Updates.ContentChanged = OnChange;
             Updates = new UpdateTracker()
             {
                 ContentChanged = OnChange

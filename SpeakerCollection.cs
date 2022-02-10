@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Xml;
@@ -14,25 +15,50 @@ namespace TranscriptionCore
     /// <returns></returns>
     public class SpeakerCollection : UndoableCollection<Speaker>
     {
-        protected Dictionary<string, string> elements = new Dictionary<string, string>();
+        public override bool Revert(Undo act)
+        {
+            switch (act)
+            {
+                case CustomElementsChanged cec:
+                    Elements = cec.Old;
+                    return true;
+            }
+            return false;
+        }
+
+        public record CustomElementsChanged(ImmutableDictionary<string, string> Old) : Undo;
+
+        private ImmutableDictionary<string, string> elements = ImmutableDictionary.Create<string, string>(StringComparer.OrdinalIgnoreCase);
+        public ImmutableDictionary<string, string> Elements
+        {
+
+            get => elements;
+            set
+            {
+                var oldv = elements;
+                elements = value;
+                Updates.OnContentChanged(new CustomElementsChanged(oldv));
+            }
+        }
+
         public SpeakerCollection(XElement e)
         {
-            elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Update.BeginUpdate();
+            Updates.BeginUpdate();
             try
             {
+                Elements = Elements.AddRange(e.Attributes().Select(a => new KeyValuePair<string, string>(a.Name.ToString(), a.Value)));
                 foreach (var spkr in e.Elements("s").Select(x => new Speaker(x)))
                     this.Add(spkr);
             }
             finally
             {
-                Update.EndUpdate();
+                Updates.EndUpdate();
             }
         }
 
         public SpeakerCollection(IEnumerable<Speaker> speakers)
         {
-            Update.BeginUpdate();
+            Updates.BeginUpdate();
             try
             {
                 foreach (var spkr in speakers)
@@ -40,7 +66,7 @@ namespace TranscriptionCore
             }
             finally
             {
-                Update.EndUpdate();
+                Updates.EndUpdate();
             }
         }
 
