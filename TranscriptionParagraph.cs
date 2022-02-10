@@ -199,7 +199,9 @@ namespace TranscriptionCore
             {
                 var old = _speaker;
                 _speaker = value ?? throw new ArgumentException("speaker on paragraph cannot be null, use TranscriptionCore.Speaker.DefaultSepeaker");
+#pragma warning disable CS0618 // Type or member is obsolete
                 _internalID = value?.SerializationID ?? Speaker.DefaultID;
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 Updates.OnContentChanged(new SpeakerChanged(old));
             }

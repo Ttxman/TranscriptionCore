@@ -27,15 +27,12 @@ namespace TranscriptionCore
             }
         }
 
-
-        /// <summary>
-        /// Serialization ID, Changed when Transcription is serialized. For user ID use DBID property
-        /// </summary>
+        [Obsolete("Serialization ID, Changed when Transcription is serialized.For user ID use DBID property")]
         internal int SerializationID
         {
             get;
             set;
-        }
+        } = DefaultID;
 
 
         public static string GetFullName(string FirstName, string MiddleName, string Surname)
@@ -58,6 +55,8 @@ namespace TranscriptionCore
 
             if (string.IsNullOrEmpty(pJmeno))
                 pJmeno = "---";
+
+
             return pJmeno;
         }
 
@@ -74,7 +73,6 @@ namespace TranscriptionCore
             X = 0,
             Male = 1,
             Female = 2
-
         }
 
         private string _firstName = "";
@@ -149,7 +147,9 @@ namespace TranscriptionCore
             if (!s.CheckRequiredAtributes("id", "surname"))
                 throw new ArgumentException("required attribute missing on v2format speaker  (id, surname)");
 
+#pragma warning disable CS0618 // Type or member is obsolete
             sp.SerializationID = int.Parse(s.Attribute("id").Value);
+#pragma warning restore CS0618 // Type or member is obsolete
             sp.Surname = s.Attribute("surname").Value;
             sp.FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
@@ -189,7 +189,9 @@ namespace TranscriptionCore
             if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
                 throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
 
+#pragma warning disable CS0618 // Type or member is obsolete
             SerializationID = int.Parse(s.Attribute("id").Value);
+#pragma warning restore CS0618 // Type or member is obsolete
             Surname = s.Attribute("surname").Value;
             FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
 
@@ -298,7 +300,9 @@ namespace TranscriptionCore
                 Elements.Select(e =>
                     new XAttribute(e.Key, e.Value))
                     .Union(new[]{
+#pragma warning disable CS0618 // Type or member is obsolete
                     new XAttribute("id", SerializationID.ToString()),
+#pragma warning restore CS0618 // Type or member is obsolete
                     new XAttribute("surname",Surname),
                     new XAttribute("firstname",FirstName),
                     new XAttribute("sex",(Sex==Sexes.Male)?"m":(Sex==Sexes.Female)?"f":"x"),
@@ -378,16 +382,19 @@ namespace TranscriptionCore
 
         private class AttributeComparer : IEqualityComparer<SpeakerAttribute>
         {
-
-            public bool Equals(SpeakerAttribute x, SpeakerAttribute y)
+            public bool Equals(SpeakerAttribute? x, SpeakerAttribute? y)
             {
+                if (x is null && y is null)
+                    return true;
+
+                if (x is null || y is null)
+                    return false;
+
                 return x.Name == y.Name && x.Value == y.Value;
             }
 
             public int GetHashCode(SpeakerAttribute obj)
-            {
-                return obj.Name.GetHashCode() ^ obj.Value.GetHashCode();
-            }
+                => HashCode.Combine(obj.Name, obj.Value);
         }
 
         /// <summary>

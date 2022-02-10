@@ -69,15 +69,19 @@ namespace TranscriptionCore
 
         private void ReindexSpeakers()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var speakers = Paragraphs.Select(p => p.Speaker).Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID).Distinct().ToList();
             for (int i = 0; i < speakers.Count; i++)
                 speakers[i].SerializationID = i;
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private XElement SerializeSpeakers(bool SaveSpeakersDetailed)
         {
             var speakers = Paragraphs.Select(p => p.Speaker)
+#pragma warning disable CS0618 // Type or member is obsolete
                 .Where(s => s != Speaker.DefaultSpeaker && s.SerializationID != Speaker.DefaultID)
+#pragma warning restore CS0618 // Type or member is obsolete
                 .Concat(_speakers.Where(s => s.PinnedToDocument))
                 .Distinct()
                 .ToList();
@@ -585,8 +589,9 @@ namespace TranscriptionCore
                         switch (reader.Name)
                         {
                             case "ID":
-
+#pragma warning disable CS0618 // Type or member is obsolete
                                 sp.SerializationID = XmlConvert.ToInt32(reader.ReadElementString("ID"));
+#pragma warning restore CS0618 // Type or member is obsolete
                                 break;
                             case "Surname":
                                 sp.Surname = reader.ReadElementString("Surname");

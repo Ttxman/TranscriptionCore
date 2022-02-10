@@ -158,7 +158,11 @@ namespace TranscriptionCore
                         var lang = sp.Element("DefaultLang");
 
                         if (id is { })
+                        {
+#pragma warning disable CS0618 // Type or member is obsolete
                             speaker.SerializationID = XmlConvert.ToInt32(id.Value);
+#pragma warning restore CS0618 // Type or member is obsolete
+                        }
                         else
                             continue;
 
