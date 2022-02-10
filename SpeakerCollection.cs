@@ -73,15 +73,11 @@ namespace TranscriptionCore
         }
 
 
-        public Speaker? GetSpeakerByDBID(string dbid)
-        {
-            return this.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m => m.DBID == dbid));
-        }
+        public Speaker? GetSpeakerByDBID(string dbid) 
+            => this.FirstOrDefault(s => s.DataBaseID.DBID == dbid || s.Merges.Any(m => m.DBID == dbid));
 
-        public Speaker? GetSpeakerByName(string fullname)
-        {
-            return this.FirstOrDefault(s => s.FullName == fullname);
-        }
+        public Speaker? GetSpeakerByName(string fullname) 
+            => this.FirstOrDefault(s => s.FullName == fullname);
 
         /// <summary>
         /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
@@ -166,7 +162,6 @@ namespace TranscriptionCore
                         else
                             continue;
 
-                        speaker.DBID = Guid.NewGuid().ToString();
                         speaker.FirstName = fname?.Value ?? "";
                         speaker.Surname = sname?.Value ?? "";
 

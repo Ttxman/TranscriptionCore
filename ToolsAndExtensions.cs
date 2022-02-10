@@ -129,5 +129,34 @@ namespace TranscriptionCore
 
             return false;
         }
+
+
+        /// <summary>
+        /// update values from another speaker .. used for merging, probably not doing what user assumes :)
+        /// </summary>
+        /// <param name="into"></param>
+        /// <param name="from"></param>
+        public static void MergeSpeakers(Speaker into, Speaker from)
+        {
+            into.Surname = from.Surname;
+            into.FirstName = from.FirstName;
+            into.MiddleName = from.MiddleName;
+            into.DegreeBefore = from.DegreeBefore;
+            into.DegreeAfter = from.DegreeAfter;
+            into.DefaultLang = from.DefaultLang;
+            into.Sex = from.Sex;
+            into.ImgBase64 = from.ImgBase64;
+            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
+
+            if (from.DataBaseID.DBType != DBType.File && into.DataBaseID.DBID != from.DataBaseID.DBID)
+                into.Merges.Add(new DBMerge(from.DataBaseID.DBType, from.DataBaseID.DBID));
+
+
+            into.Attributes = into.Attributes
+                .Concat(from.Attributes).GroupBy(a => a.Name)
+                .SelectMany(g => g.Distinct(new Speaker.AttributeComparer()))
+                .ToList();
+
+        }
     }
 }

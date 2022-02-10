@@ -12,8 +12,6 @@ namespace TranscriptionCore
     {
         public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
 
-
-
         private bool _PinnedToDocument = false;
         /// <summary>
         ///  == Do not delete from document, when not used in any paragraph
@@ -35,7 +33,7 @@ namespace TranscriptionCore
         } = DefaultID;
 
 
-        public static string GetFullName(string FirstName, string MiddleName, string Surname)
+        public static string GetFullName(string FirstName, string? MiddleName, string Surname)
         {
             string pJmeno = "";
             if (FirstName is { } && FirstName.Length > 0)
@@ -103,9 +101,9 @@ namespace TranscriptionCore
         }
         public Sexes Sex;
 
-        public string ImgBase64;
+        public string? ImgBase64;
 
-        string _defaultLang = null;
+        string? _defaultLang = null;
         public string DefaultLang
         {
             get
@@ -120,15 +118,15 @@ namespace TranscriptionCore
         }
 
 
-        public string DegreeBefore;
-        public string MiddleName;
-        public string DegreeAfter;
+        public string? DegreeBefore;
+        public string? MiddleName;
+        public string? DegreeAfter;
 
 
         public Speaker()
         {
-            FirstName = null;
-            Surname = null;
+            FirstName = "";
+            Surname = "";
             Sex = Sexes.X;
             ImgBase64 = null;
             DefaultLang = Langs[0];
@@ -138,7 +136,6 @@ namespace TranscriptionCore
 
         public static readonly List<string> Langs = new List<string> { "CZ", "SK", "RU", "HR", "PL", "EN", "DE", "ES", "IT", "CU", "--", "😃" };
         public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
         internal static Speaker DeserializeV2(XElement s, bool isStrict)
         {
@@ -148,12 +145,12 @@ namespace TranscriptionCore
                 throw new ArgumentException("required attribute missing on v2format speaker  (id, surname)");
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            sp.SerializationID = int.Parse(s.Attribute("id").Value);
+            sp.SerializationID = int.Parse(s.Attribute("id")!.Value);
 #pragma warning restore CS0618 // Type or member is obsolete
-            sp.Surname = s.Attribute("surname").Value;
-            sp.FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
+            sp.Surname = s.Attribute("surname")!.Value;
+            sp.FirstName = s.Attribute("firstname")?.Value ?? "";
 
-            sp.Sex = (s.Attribute("sex") ?? EmptyAttribute).Value switch
+            sp.Sex = s.Attribute("sex")?.Value switch
             {
                 "M" => Sexes.Male,
                 "F" => Sexes.Female,
@@ -190,36 +187,30 @@ namespace TranscriptionCore
                 throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            SerializationID = int.Parse(s.Attribute("id").Value);
+            SerializationID = int.Parse(s.Attribute("id")!.Value);
 #pragma warning restore CS0618 // Type or member is obsolete
-            Surname = s.Attribute("surname").Value;
-            FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
+            Surname = s.Attribute("surname")!.Value;
+            FirstName = s.Attribute("firstname")?.Value ?? "";
 
-            Sex = (s.Attribute("sex") ?? EmptyAttribute).Value switch
+            Sex = s.Attribute("sex")?.Value switch
             {
                 "m" => Sexes.Male,
                 "f" => Sexes.Female,
                 _ => Sexes.X,
             };
-            DefaultLang = s.Attribute("lang").Value.ToUpper();
+
+            DefaultLang = s.Attribute("lang")!.Value.ToUpper();
 
             //merges
-            this.Merges.AddRange(s.Elements("m").Select(m => new DBMerge(m.Attribute("dbid").Value, stringToDBType(m.Attribute("dbtype").Value))));
+            this.Merges.AddRange(s.Elements("m").Select(m => DBMerge.Deserialize(m)));
 
             Attributes.AddRange(s.Elements("a").Select(e => SpeakerAttribute.Deserialize(e)));
 
             Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
+            this.DataBaseID = DBMerge.Deserialize(s);
 
-            if (Elements.TryGetValue("dbid", out string rem))
-            {
-                DBID = rem;
-                if (Elements.TryGetValue("dbtype", out rem))
-                    this.DataBaseType = stringToDBType(rem);
-
-            }
-
-            if (Elements.TryGetValue("synchronized", out rem))
+            if (Elements.TryGetValue("synchronized", out var rem))
             {
                 DateTime date;
                 if (!string.IsNullOrWhiteSpace(rem)) //i had to load big archive with empty synchronized attribute .. this is significant speedup
@@ -272,23 +263,6 @@ namespace TranscriptionCore
             Elements.Remove("pinned");
         }
 
-        private DBType stringToDBType(string rem)
-        {
-            switch (rem)
-            {
-                case "user":
-                    return DBType.User;
-                case "api":
-                    return DBType.Api;
-
-                case "file":
-                    return DBType.File;
-
-                default:
-                    goto case "file";
-            }
-        }
-
         /// <summary>
         /// serialize speaker
         /// </summary>
@@ -311,19 +285,6 @@ namespace TranscriptionCore
                     })
             );
 
-            string val = "file";
-            if (DataBaseType != DBType.File)
-            {
-                elm.Add(new XAttribute("dbid", this.DBID));
-                if (this.DataBaseType == DBType.Api)
-                    val = "api";
-                else if (DataBaseType == DBType.User)
-                    val = "user";
-                else
-                    val = "file";
-                elm.Add(new XAttribute("dbtype", val));
-            }
-
             if (!string.IsNullOrWhiteSpace(MiddleName))
                 elm.Add(new XAttribute("middlename", MiddleName));
 
@@ -333,8 +294,11 @@ namespace TranscriptionCore
             if (!string.IsNullOrWhiteSpace(DegreeAfter))
                 elm.Add(new XAttribute("degreeafter", DegreeAfter));
 
-            if (DataBaseType != DBType.File)
+            if (DataBaseID.DBType != DBType.File)
+            {
+                DataBaseID.Serialize(elm);
                 elm.Add(new XAttribute("synchronized", XmlConvert.ToString(DateTime.UtcNow, XmlDateTimeSerializationMode.Utc)));//stored in UTC convert from local
+            }
 
             if (PinnedToDocument)
                 elm.Add(new XAttribute("pinned", true));
@@ -350,37 +314,7 @@ namespace TranscriptionCore
         }
         #endregion
 
-
-        /// <summary>
-        /// update values from another speaker .. used for merging, probably not doing what user assumes :)
-        /// </summary>
-        /// <param name="into"></param>
-        /// <param name="from"></param>
-        public static void MergeFrom(Speaker into, Speaker from)
-        {
-            into.DataBaseType = from.DataBaseType;
-            into.Surname = from.Surname;
-            into.FirstName = from.FirstName;
-            into.MiddleName = from.MiddleName;
-            into.DegreeBefore = from.DegreeBefore;
-            into.DegreeAfter = from.DegreeAfter;
-            into.DefaultLang = from.DefaultLang;
-            into.Sex = from.Sex;
-            into.ImgBase64 = from.ImgBase64;
-            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
-
-            if (from.DBType != DBType.File && into.DBID != from.DBID)
-                into.Merges.Add(new DBMerge(from.DBID, from.DataBaseType));
-
-
-            into.Attributes = into.Attributes
-                .Concat(from.Attributes).GroupBy(a => a.Name)
-                .SelectMany(g => g.Distinct(new AttributeComparer()))
-                .ToList();
-
-        }
-
-        private class AttributeComparer : IEqualityComparer<SpeakerAttribute>
+        internal class AttributeComparer : IEqualityComparer<SpeakerAttribute>
         {
             public bool Equals(SpeakerAttribute? x, SpeakerAttribute? y)
             {
@@ -403,7 +337,7 @@ namespace TranscriptionCore
         /// <param name="s"></param>
         private Speaker(Speaker s)
         {
-            MergeFrom(this, s);
+            ToolsAndExtensions.MergeSpeakers(this, s);
         }
 
         public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
@@ -421,7 +355,7 @@ namespace TranscriptionCore
         }
 
         public static readonly int DefaultID = Constants.DefaultSpeakerId;
-        public static readonly Speaker DefaultSpeaker = Constants.DefailtSpeaker;
+        public static readonly Speaker DefaultSpeaker = Constants.DefaultSpeaker;
 
         /// <summary>
         /// copies all info, and generates new DBI and ID .... (deep copy)
@@ -432,45 +366,7 @@ namespace TranscriptionCore
             return new Speaker(this);
         }
 
-        string? _dbid = null;
-
-        /// <summary>
-        /// if not set, GUID is automatically generated on first read
-        /// if DataBaseType is DBType.User - modification is disabled
-        /// if DataBaseType is DBType.File - processing of value is disabled
-        /// SHOULD be always UNIQUE GUID-like string (NanoTrans expects that ids from DBType.API and DBType.User can't conflict)
-        /// empty string is automatically converted to null, dbid will be generated on next read
-        /// </summary>
-        public string? DBID
-        {
-            get
-            {
-                if (_dbid == null && DBType != DBType.File)
-                {
-                    _dbid = Guid.NewGuid().ToString();
-                }
-
-                return _dbid;
-            }
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    _dbid = null;
-                else if (string.IsNullOrWhiteSpace(_dbid))
-                    _dbid = value;
-                else if (DataBaseType == DBType.User)
-                    throw new ArgumentException("cannot change DBID when Dabase is User");
-                else
-                    _dbid = value;
-
-            }
-        }
-
-        /// <summary>
-        /// alias for DataBaseType
-        /// </summary>
-        public DBType DBType { get { return this.DataBaseType; } set { this.DataBaseType = value; } }
-        public DBType DataBaseType { get; set; }
+        public DBMerge DataBaseID { get; set; } = Constants.DefaultSpeakerID;
 
         public DateTime Synchronized { get; set; }
 

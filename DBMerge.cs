@@ -6,30 +6,42 @@ using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
-    public class DBMerge
+    public record DBMerge(DBType DBType, string DBID)
     {
-        public string DBID { get; private set; }
-        public DBType DBtype { get; private set; }
 
-        public DBMerge(string DBID, DBType type)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="elm"></param>
+        /// <returns>if elm is not null returns elm with new attributes, otherwise returns new "m" element</returns>
+        internal XElement Serialize(XElement? elm = null)
         {
-            this.DBID = DBID;
-            this.DBtype = type;
+            elm ??= new XElement("m");
+            string val = this.DBType switch
+            {
+                DBType.Api => "api",
+                DBType.User => "user",
+                _ => "file",
+            };
+
+            elm.Add(new XAttribute("dbid", DBID), new XAttribute("dbtype", val));
+            return elm;
         }
 
-        internal XElement Serialize()
+        public static DBMerge Deserialize(XElement e)
         {
-            string val;
-            if (this.DBtype == DBType.Api)
-                val = "api";
-            else if (DBtype == DBType.User)
-                val = "user";
-            else
-                val = "file";
+            var dbid = e.Attribute("dbid")?.Value;
+            if (dbid is null)
+                return Constants.DefaultSpeakerID;
 
-            return new XElement("m",
-                new XAttribute("dbid", DBID),
-                new XAttribute("dbtype",val));
+            var t = e.Attribute("dbtype")?.Value switch
+            {
+                "user" => DBType.User,
+                "api" => DBType.Api,
+                _ => DBType.File,
+            };
+
+            return new DBMerge(t, dbid);
         }
     }
 }
