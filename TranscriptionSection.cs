@@ -33,6 +33,8 @@ namespace TranscriptionCore
             }
         }
 
+        public override bool IsSection => true;
+
         public string Name
         {
             get
