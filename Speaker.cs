@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -38,37 +39,6 @@ namespace TranscriptionCore
 
         public List<DBMerge> Merges = new List<DBMerge>();
 
-
-        public static string GetFullName(string FirstName, string MiddleName, string Surname)
-        {
-            string pJmeno = "";
-            if (FirstName != null && FirstName.Length > 0)
-            {
-                pJmeno += FirstName.Trim();
-            }
-            if (MiddleName != null && MiddleName.Length > 0)
-            {
-                pJmeno += " " + MiddleName.Trim();
-            }
-
-            if (Surname != null && Surname.Length > 0)
-            {
-                if (pJmeno.Length > 0) pJmeno += " ";
-                pJmeno += Surname.Trim();
-            }
-
-            if (string.IsNullOrEmpty(pJmeno))
-                pJmeno = "---";
-            return pJmeno;
-        }
-
-        public string FullName
-        {
-            get
-            {
-                return GetFullName(this.FirstName, this.MiddleName, this.Surname);
-            }
-        }
 
         public enum Sexes : byte
         {
@@ -414,6 +384,32 @@ namespace TranscriptionCore
         {
             get => this.DataBaseType;
             set => this.DataBaseType = value;
+        }
+
+        public string FullName
+        {
+            get
+            {
+                var buff = new StringBuilder();
+                Append(this.FirstName);
+                Append(this.MiddleName);
+                Append(this.Surname);
+
+                return buff.Length > 0
+                    ? buff.ToString()
+                    : "---";
+
+                void Append(string part)
+                {
+                    if (string.IsNullOrWhiteSpace(part))
+                        return;
+
+                    if (buff.Length > 0)
+                        buff.Append(" "); // add separator
+
+                    buff.Append(part.Trim());
+                }
+            }
         }
     }
 }
