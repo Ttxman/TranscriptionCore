@@ -333,26 +333,10 @@ namespace TranscriptionCore
             if (from.DBType != DBType.File && into.DBID != from.DBID)
                 into.Merges.Add(new DBMerge(from.DBID, from.DataBaseType));
 
-
             into.Attributes = into.Attributes
-                .Concat(from.Attributes).GroupBy(a => a.Name)
-                .SelectMany(g => g.Distinct(new AttributeComparer()))
+                .Concat(from.Attributes).GroupBy(a => a.Name) // one group for each attribute name
+                .SelectMany(g => g.Distinct(SpeakerAttribute.Comparer.Instance)) // unique attributes in each group (TODO: why?)
                 .ToList();
-
-        }
-
-        private class AttributeComparer : IEqualityComparer<SpeakerAttribute>
-        {
-
-            public bool Equals(SpeakerAttribute x, SpeakerAttribute y)
-            {
-                return x.Name == y.Name && x.Value == y.Value;
-            }
-
-            public int GetHashCode(SpeakerAttribute obj)
-            {
-                return obj.Name.GetHashCode() ^ obj.Value.GetHashCode();
-            }
         }
 
         /// <summary>

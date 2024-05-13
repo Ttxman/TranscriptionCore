@@ -66,5 +66,16 @@ namespace TranscriptionCore
                 Value
                 );
         }
+
+        public class Comparer : IEqualityComparer<SpeakerAttribute>
+        {
+            public static Comparer Instance { get; } = new Comparer();
+
+            public bool Equals(SpeakerAttribute x, SpeakerAttribute y)
+                => x?.Name == y?.Name && x?.Value == y?.Value;
+
+            public int GetHashCode(SpeakerAttribute obj)
+                => obj.Name.GetHashCode() ^ obj.Value.GetHashCode();
+        }
     }
 }
