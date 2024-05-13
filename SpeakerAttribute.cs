@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -56,15 +54,6 @@ namespace TranscriptionCore
             this.Name = a.Name;
             this.Value = a.Value;
             this.Date = a.Date;
-        }
-
-        public XElement Serialize()
-        {
-            return new XElement("a",
-                new XAttribute("name", Name),
-                new XAttribute("date", XmlConvert.ToString(Date, XmlDateTimeSerializationMode.Utc)),
-                Value
-                );
         }
 
         public class Comparer : IEqualityComparer<SpeakerAttribute>

@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Xml;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 
 namespace TranscriptionCore
 {
     public class Speaker
     {
-        public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
-
         /// <summary> Do not delete from document, when not used in any paragraph </summary>
         public bool PinnedToDocument { get; set; } = false;
 
@@ -39,13 +36,16 @@ namespace TranscriptionCore
 
         public List<DBMerge> Merges = new List<DBMerge>();
 
+        public Dictionary<string, string> Elements = new Dictionary<string, string>();
+
+        public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
+
 
         public enum Sexes : byte
         {
             X = 0,
             Male = 1,
             Female = 2
-
         }
 
         public Speaker()
@@ -54,233 +54,14 @@ namespace TranscriptionCore
             ImgBase64 = null;
             DefaultLang = Langs[0];
         }
-        #region serializace nova
-
 
         public static readonly List<string> Langs = new List<string> { "CZ", "SK", "RU", "HR", "PL", "EN", "DE", "ES", "IT", "CU", "--", "😃" };
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
-        internal static Speaker DeserializeV2(XElement s, bool isStrict)
-        {
-            Speaker sp = new Speaker();
-
-            if (!s.CheckRequiredAtributes("id", "surname"))
-                throw new ArgumentException("required attribute missing on v2format speaker  (id, surname)");
-
-            sp.SerializationID = int.Parse(s.Attribute("id").Value);
-            sp.Surname = s.Attribute("surname")?.Value ?? "";
-            sp.FirstName = s.Attribute("firstname")?.Value ?? "";
-
-            switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
-            {
-                case "M":
-                    sp.Sex = Sexes.Male;
-                    break;
-                case "F":
-                    sp.Sex = Sexes.Female;
-                    break;
-                default:
-                    sp.Sex = Sexes.X;
-                    break;
-            }
-
-            sp.Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-
-            string rem;
-            if (sp.Elements.TryGetValue("comment", out rem))
-            {
-                SpeakerAttribute sa = new SpeakerAttribute("comment", "comment", rem);
-                sp.Attributes.Add(sa);
-            }
-
-            if (sp.Elements.TryGetValue("lang", out rem))
-            {
-                int idx = Langs.IndexOf(rem);
-                sp.DefaultLang = rem;
-            }
-
-            sp.Elements.Remove("id");
-            sp.Elements.Remove("firstname");
-            sp.Elements.Remove("surname");
-            sp.Elements.Remove("sex");
-            sp.Elements.Remove("comment");
-            sp.Elements.Remove("lang");
-
-            return sp;
-        }
-        internal static CultureInfo csCulture = CultureInfo.CreateSpecificCulture("cs");
-        public Speaker(XElement s) //V3 format
+        public Speaker(XElement s)
             : this()
         {
-            if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
-                throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
-
-            SerializationID = int.Parse(s.Attribute("id").Value);
-            Surname = s.Attribute("surname")?.Value ?? "";
-            FirstName = s.Attribute("firstname")?.Value ?? "";
-
-            switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
-            {
-                case "m":
-                    Sex = Sexes.Male;
-                    break;
-                case "f":
-                    Sex = Sexes.Female;
-                    break;
-                default:
-                    Sex = Sexes.X;
-                    break;
-            }
-
-            DefaultLang = s.Attribute("lang").Value.ToUpper();
-
-            //merges
-            this.Merges.AddRange(s.Elements("m").Select(m => new DBMerge(m.Attribute("dbid").Value, stringToDBType(m.Attribute("dbtype").Value))));
-
-            Attributes.AddRange(s.Elements("a").Select(e => new SpeakerAttribute(e)));
-
-            Elements = s.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-
-
-            string rem;
-            if (Elements.TryGetValue("dbid", out rem))
-            {
-                DBID = rem;
-                if (Elements.TryGetValue("dbtype", out rem))
-                    this.DataBaseType = stringToDBType(rem);
-
-            }
-
-            if (Elements.TryGetValue("synchronized", out rem))
-            {
-                DateTime date;
-                if (!string.IsNullOrWhiteSpace(rem)) //i had to load big archive with empty synchronized attribute .. this is significant speedup
-                {
-                    //problem with saving datetimes in local format
-                    try
-                    {
-                        date = XmlConvert.ToDateTime(rem, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
-                    }
-                    catch
-                    {
-                        if (DateTime.TryParse(rem, csCulture, DateTimeStyles.None, out date))
-                            date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
-                        else
-                            date = DateTime.Now;
-                    }
-                }
-                else
-                    date = DateTime.Now;
-                this.Synchronized = date;
-            }
-
-
-            if (Elements.TryGetValue("middlename", out rem))
-                this.MiddleName = rem;
-
-            if (Elements.TryGetValue("degreebefore", out rem))
-                this.DegreeBefore = rem;
-
-            if (Elements.TryGetValue("pinned", out rem))
-                this.PinnedToDocument = XmlConvert.ToBoolean(rem);
-
-            if (Elements.TryGetValue("degreeafter", out rem))
-                this.DegreeAfter = rem;
-
-
-            Elements.Remove("id");
-            Elements.Remove("surname");
-            Elements.Remove("firstname");
-            Elements.Remove("sex");
-            Elements.Remove("lang");
-
-            Elements.Remove("dbid");
-            Elements.Remove("dbtype");
-            Elements.Remove("middlename");
-            Elements.Remove("degreebefore");
-            Elements.Remove("degreeafter");
-            Elements.Remove("synchronized");
-
-            Elements.Remove("pinned");
+            SerializationV3.Deserialize(s, this);
         }
-
-        private DBType stringToDBType(string rem)
-        {
-            switch (rem)
-            {
-                case "user":
-                    return DBType.User;
-                case "api":
-                    return DBType.Api;
-
-                case "file":
-                    return DBType.File;
-
-                default:
-                    goto case "file";
-            }
-        }
-
-        /// <summary>
-        /// serialize speaker
-        /// </summary>
-        /// <param name="saveAll">save including image and merges, used when saving database</param>
-        /// <returns></returns>
-        public XElement Serialize(bool saveAll = false) //v3
-        {
-            XElement elm = new XElement("s",
-                Elements.Select(e =>
-                    new XAttribute(e.Key, e.Value))
-                    .Union(new[]{ 
-                    new XAttribute("id", SerializationID.ToString()),
-                    new XAttribute("surname",Surname),
-                    new XAttribute("firstname",FirstName),
-                    new XAttribute("sex",(Sex==Sexes.Male)?"m":(Sex==Sexes.Female)?"f":"x"),
-                    new XAttribute("lang",DefaultLang.ToLower())
-
-                    })
-            );
-
-            string val = "file";
-            if (DataBaseType != DBType.File)
-            {
-                elm.Add(new XAttribute("dbid", this.DBID));
-                if (this.DataBaseType == DBType.Api)
-                    val = "api";
-                else if (DataBaseType == DBType.User)
-                    val = "user";
-                else
-                    val = "file";
-                elm.Add(new XAttribute("dbtype", val));
-            }
-
-            if (!string.IsNullOrWhiteSpace(MiddleName))
-                elm.Add(new XAttribute("middlename", MiddleName));
-
-            if (!string.IsNullOrWhiteSpace(DegreeBefore))
-                elm.Add(new XAttribute("degreebefore", DegreeBefore));
-
-            if (!string.IsNullOrWhiteSpace(DegreeAfter))
-                elm.Add(new XAttribute("degreeafter", DegreeAfter));
-
-            if (DataBaseType != DBType.File)
-                elm.Add(new XAttribute("synchronized", XmlConvert.ToString(DateTime.UtcNow, XmlDateTimeSerializationMode.Utc)));//stored in UTC convert from local
-
-            if (PinnedToDocument)
-                elm.Add(new XAttribute("pinned", true));
-
-            if (saveAll)
-                foreach (var m in Merges)
-                    elm.Add(m.Serialize());
-
-            foreach (var a in Attributes)
-                elm.Add(a.Serialize());
-
-            return elm;
-        }
-        #endregion
-
 
         /// <summary>
         /// update values from another speaker .. used for merging, probably not doing what user assumes :)

@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -11,7 +9,7 @@ namespace TranscriptionCore
     /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
     /// </summary>
     /// <returns></returns>
-    public class SpeakerCollection:IList<Speaker>
+    public class SpeakerCollection : IList<Speaker>
     {
         protected string _fileName;
         public string FileName
@@ -20,14 +18,12 @@ namespace TranscriptionCore
             set { _fileName  = value; }
         }
 
-        protected List<Speaker> _Speakers = new List<Speaker>(); 
+        internal List<Speaker> _Speakers = new List<Speaker>(); 
+        
+        internal Dictionary<string, string> elements = new Dictionary<string, string>();
 
-
-        protected Dictionary<string, string> elements = new Dictionary<string, string>();
-        public SpeakerCollection(XElement e)
+        public SpeakerCollection()
         {
-            elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            _Speakers = e.Elements("s").Select(s => new Speaker(s)).ToList();
         }
 
         public SpeakerCollection(IEnumerable<Speaker> speakers)
@@ -55,10 +51,6 @@ namespace TranscriptionCore
             }
         }
 
-        public SpeakerCollection()
-        {
-
-        }
         /// <summary>
         /// remove speaker from list - NOT FROM TRANSCRIPTION !!!!
         /// </summary>
@@ -81,137 +73,12 @@ namespace TranscriptionCore
         }
 
         /// <summary>
-        /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
-        /// </summary>
-        /// <param name="saveAll">save including image and merges, used when saving database</param>
-        /// <returns></returns>
-        public virtual XElement Serialize(bool saveAll = true)
-        {
-            XElement elm = new XElement("sp",
-                elements.Select(e => new XAttribute(e.Key, e.Value)),
-                _Speakers.Select(s => s.Serialize(saveAll))
-            );
-
-            return elm;
-        }
-
-        /// <summary>
-        /// BEWARE - SpeakerCollection is synchronized manually, It can contain different speakers than transcription
-        /// </summary>
-        /// <param name="saveAll">save including image and merges, used when saving database</param>
-        /// <returns></returns>
-        public void Serialize(string filename, bool saveAll = true)
-        {
-            var xelm = Serialize(saveAll);
-            xelm.Save(filename);
-        }
-
-        /// <summary>
         /// called after deserialization
         /// </summary>
         protected virtual void Initialize(XDocument doc)
         {
 
         }
-
-
-        /// <summary>
-        /// //deserialize speaker database file. 
-        /// Old file format support should not concern anyone outside ite.tul.cz, public release never containded old format
-        /// </summary>
-        /// <param name="filename"></param>
-        /// <param name="store"></param>
-        public static void Deserialize(string filename, SpeakerCollection store)
-        {
-            //if file do not exists, do not modify store
-            if (!File.Exists(filename))
-            {
-                return;
-            }
-            store._fileName = filename;
-            XDocument doc = XDocument.Load(filename);
-
-
-            if (doc.Root.Name == "MySpeakers") //old format from XmlSerializer
-            {
-                #region old format
-                var root = doc.Root;
-                var speakers = root.Elements("Speakers").Elements("Speaker");
-                foreach (var sp in speakers)
-                {
-                    Speaker speaker = new Speaker();
-
-                    var id = sp.Element("ID");
-                    var fname = sp.Element("FirstName");
-                    var sname = sp.Element("Surname");
-                    var sex = sp.Element("Sex");
-                    var comment = sp.Element("Comment");
-                    var lang = sp.Element("DefaultLang");
-
-                    if (id != null)
-                        speaker.SerializationID = XmlConvert.ToInt32(id.Value);
-                    else
-                        continue;
-
-                    speaker.DBID = Guid.NewGuid().ToString();
-                    speaker.FirstName = fname?.Value ?? "";
-                    speaker.Surname = sname?.Value ?? "";
-
-                    switch (sex.Value.ToLower())
-                    {
-                        case "m":
-                        case "muž":
-                        case "male":
-                            speaker.Sex = Speaker.Sexes.Male;
-                            break;
-
-                        case "f":
-                        case "žena":
-                        case "female":
-                            speaker.Sex = Speaker.Sexes.Female;
-                            break;
-                        default:
-                            speaker.Sex = Speaker.Sexes.X;
-                            break;
-                    }
-
-                    if (comment != null && !string.IsNullOrWhiteSpace(comment.Value))
-                        speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
-
-
-                    if (int.TryParse(lang?.Value, out int vvvv) && vvvv < Speaker.Langs.Count)
-                    {
-                        speaker.DefaultLang = Speaker.Langs[vvvv];
-                    }
-                    else
-                    {
-                        speaker.DefaultLang = lang?.Value ?? Speaker.Langs[0];
-                    }
-                    store.Add(speaker);
-                }
-                #endregion
-            }
-            else
-            {
-                store._Speakers = doc.Root.Elements("s").Select(x => new Speaker(x)).ToList();
-                store.Initialize(doc);
-            }
-        }
-
-        //deserialize speaker database file...          
-        public static SpeakerCollection Deserialize(string filename)
-        {
-            var mysp = new SpeakerCollection();
-            Deserialize(filename, mysp);
-
-            return mysp;
-        }
-
-        public SpeakerCollection(string filename)
-        {
-            SpeakerCollection.Deserialize(filename, this);
-        }
-
 
         public int IndexOf(Speaker item)
         {
