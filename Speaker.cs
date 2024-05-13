@@ -60,16 +60,6 @@ namespace TranscriptionCore
             SerializationV3.Deserialize(s, this);
         }
 
-        public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
-            : this()
-        {
-            FirstName = aSpeakerFirstname ?? "";
-            Surname = aSpeakerSurname;
-            Sex = aPohlavi;
-            ImgBase64 = aSpeakerFotoBase64;
-        }
-
-
         public override string ToString()
         {
             return FullName + " (" + DefaultLang + ")";
