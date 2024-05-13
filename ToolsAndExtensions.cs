@@ -22,27 +22,28 @@ namespace TranscriptionCore
             using (FileStream s = new FileStream(filename, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
             {
                 bool output = transcription.Serialize(s, savecompleteSpeakers);
-
-                if (output)
-                {
-                    transcription.FileName = filename;
-                    transcription.Saved = true;
-
-                    return true;
-                }
-                else
-                {
+                if (!output)
                     return false;
-                }
+
+                transcription.FileName = filename;
+                transcription.Saved = true;
+
+                return true;
             }
         }
 
         /// <summary> Serialize to V3 XML stream </summary>
         public static bool Serialize(this Transcription transcription, Stream datastream, bool saveSpeakersDetails = false)
         {
-            XDocument xdoc = SerializationV3.Serialize(transcription, saveSpeakersDetails);
-            xdoc.Save(datastream);
+            XDocument xml = transcription.Serialize(saveSpeakersDetails);
+            xml.Save(datastream);
             return true;
+        }
+
+        /// <summary> Serialize to V3 XML stream </summary>
+        public static XDocument Serialize(this Transcription transcription, bool saveSpeakersDetails = false)
+        {
+            return SerializationV3.Serialize(transcription, saveSpeakersDetails);
         }
 
         /// <summary>
