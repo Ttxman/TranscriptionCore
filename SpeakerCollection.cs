@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.Serialization;
 
 namespace TranscriptionCore
 {
@@ -155,8 +154,8 @@ namespace TranscriptionCore
                         continue;
 
                     speaker.DBID = Guid.NewGuid().ToString();
-                    speaker.FirstName = fname.Value ?? "";
-                    speaker.Surname = sname.Value ?? "";
+                    speaker.FirstName = fname?.Value ?? "";
+                    speaker.Surname = sname?.Value ?? "";
 
                     switch (sex.Value.ToLower())
                     {
@@ -180,13 +179,13 @@ namespace TranscriptionCore
                         speaker.Attributes.Add(new SpeakerAttribute("comment", "comment", comment.Value));
 
 
-                    int vvvv;
-                    if (int.TryParse(lang.Value, out vvvv) && vvvv < Speaker.Langs.Count)
+                    if (int.TryParse(lang?.Value, out int vvvv) && vvvv < Speaker.Langs.Count)
                     {
                         speaker.DefaultLang = Speaker.Langs[vvvv];
-                    }else
+                    }
+                    else
                     {
-                        speaker.DefaultLang = lang.Value ?? Speaker.Langs[0];
+                        speaker.DefaultLang = lang?.Value ?? Speaker.Langs[0];
                     }
                     store.Add(speaker);
                 }

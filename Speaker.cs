@@ -12,30 +12,31 @@ namespace TranscriptionCore
     {
         public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
 
+        /// <summary> Do not delete from document, when not used in any paragraph </summary>
+        public bool PinnedToDocument { get; set; } = false;
+
+        /// <summary> Serialization ID, Changed when Transcription is serialized. For user ID use DBID property </summary>
+        internal int SerializationID { get; set; }
+
+        public string FirstName { get; set; } = "";
+        public string MiddleName { get; set; }
+        public string Surname { get; set; } = "";
+
+        public string DegreeBefore { get; set; }
+        public string DegreeAfter { get; set; }
+
+        public Sexes Sex { get; set; }
+
+        public string ImgBase64 { get; set; } // nullable
+
+        public string DefaultLang { get; set; }
+
+        public DBType DataBaseType { get; set; }
+
+        public DateTime Synchronized { get; set; }
 
 
-        private bool _PinnedToDocument = false;
-        /// <summary>
-        ///  == Do not delete from document, when not used in any paragraph
-        /// </summary>
-        public bool PinnedToDocument
-        {
-            get { return _PinnedToDocument; }
-            set
-            {
-                _PinnedToDocument = value;
-            }
-        }
-
-
-        /// <summary>
-        /// Serialization ID, Changed when Transcription is serialized. For user ID use DBID property
-        /// </summary>
-        internal int SerializationID
-        {
-            get;
-            set;
-        }
+        public List<DBMerge> Merges = new List<DBMerge>();
 
 
         public static string GetFullName(string FirstName, string MiddleName, string Surname)
@@ -77,60 +78,8 @@ namespace TranscriptionCore
 
         }
 
-        private string _firstName = "";
-        public string FirstName
-        {
-            get
-            {
-                return _firstName;
-            }
-
-            set
-            {
-                _firstName = value ?? "";
-            }
-        }
-        private string _surName = "";
-        public string Surname
-        {
-            get
-            {
-                return _surName;
-            }
-
-            set
-            {
-                _surName = value ?? "";
-            }
-        }
-        public Sexes Sex;
-
-        public string ImgBase64;
-
-        string _defaultLang = null;
-        public string DefaultLang
-        {
-            get
-            {
-                return _defaultLang ?? Langs[0];
-            }
-
-            set
-            {
-                _defaultLang = value;
-            }
-        }
-
-
-        public string DegreeBefore;
-        public string MiddleName;
-        public string DegreeAfter;
-
-
         public Speaker()
         {
-            FirstName = null;
-            Surname = null;
             Sex = Sexes.X;
             ImgBase64 = null;
             DefaultLang = Langs[0];
@@ -150,8 +99,8 @@ namespace TranscriptionCore
                 throw new ArgumentException("required attribute missing on v2format speaker  (id, surname)");
 
             sp.SerializationID = int.Parse(s.Attribute("id").Value);
-            sp.Surname = s.Attribute("surname").Value;
-            sp.FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
+            sp.Surname = s.Attribute("surname")?.Value ?? "";
+            sp.FirstName = s.Attribute("firstname")?.Value ?? "";
 
             switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
             {
@@ -191,14 +140,15 @@ namespace TranscriptionCore
             return sp;
         }
         internal static CultureInfo csCulture = CultureInfo.CreateSpecificCulture("cs");
-        public Speaker(XElement s)//V3 format
+        public Speaker(XElement s) //V3 format
+            : this()
         {
             if (!s.CheckRequiredAtributes("id", "surname", "firstname", "sex", "lang"))
                 throw new ArgumentException("required attribute missing on speaker (id, surname, firstname, sex, lang)");
 
             SerializationID = int.Parse(s.Attribute("id").Value);
-            Surname = s.Attribute("surname").Value;
-            FirstName = (s.Attribute("firstname") ?? EmptyAttribute).Value;
+            Surname = s.Attribute("surname")?.Value ?? "";
+            FirstName = s.Attribute("firstname")?.Value ?? "";
 
             switch ((s.Attribute("sex") ?? EmptyAttribute).Value)
             {
@@ -409,14 +359,15 @@ namespace TranscriptionCore
         /// copy constructor - copies all info, but with new DBID, ID ....
         /// </summary>
         /// <param name="s"></param>
-        private Speaker(Speaker s)
+        private Speaker(Speaker s) : this()
         {
             MergeFrom(this, s);
         }
 
         public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
+            : this()
         {
-            FirstName = aSpeakerFirstname;
+            FirstName = aSpeakerFirstname ?? "";
             Surname = aSpeakerSurname;
             Sex = aPohlavi;
             ImgBase64 = aSpeakerFotoBase64;
@@ -453,7 +404,7 @@ namespace TranscriptionCore
         {
             get
             {
-                if (_dbid == null && DBType!=DBType.File)
+                if (_dbid == null && DBType != DBType.File)
                 {
                     _dbid = Guid.NewGuid().ToString();
                 }
@@ -474,14 +425,11 @@ namespace TranscriptionCore
             }
         }
 
-        /// <summary>
-        /// alias for DataBaseType
-        /// </summary>
-        public DBType DBType { get { return this.DataBaseType; } set { this.DataBaseType = value; } }
-        public DBType DataBaseType { get; set; }
-
-        public DateTime Synchronized { get; set; }
-
-        public List<DBMerge> Merges = new List<DBMerge>();
+        /// <summary> alias for DataBaseType </summary>
+        public DBType DBType
+        {
+            get => this.DataBaseType;
+            set => this.DataBaseType = value;
+        }
     }
 }
