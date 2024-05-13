@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using TranscriptionCore.Serialization;
 
-
 namespace TranscriptionCore
 {
+    /// <summary> Information about a speaker inside a transcription document </summary>
     public class Speaker
     {
         /// <summary> Do not delete from document, when not used in any paragraph </summary>
@@ -34,11 +33,11 @@ namespace TranscriptionCore
         public DateTime Synchronized { get; set; }
 
 
-        public List<DBMerge> Merges = new List<DBMerge>();
+        public List<DBMerge> Merges { get; set; } = new List<DBMerge>();
 
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
+        public Dictionary<string, string> Elements { get; set; } = new Dictionary<string, string>();
 
-        public List<SpeakerAttribute> Attributes = new List<SpeakerAttribute>();
+        public List<SpeakerAttribute> Attributes { get; set; } = new List<SpeakerAttribute>();
 
 
         public enum Sexes : byte
@@ -63,42 +62,6 @@ namespace TranscriptionCore
             SerializationV3.Deserialize(s, this);
         }
 
-        /// <summary>
-        /// update values from another speaker .. used for merging, probably not doing what user assumes :)
-        /// </summary>
-        /// <param name="into"></param>
-        /// <param name="from"></param>
-        public static void MergeFrom(Speaker into, Speaker from)
-        {
-            into.DataBaseType = from.DataBaseType;
-            into.Surname = from.Surname;
-            into.FirstName = from.FirstName;
-            into.MiddleName = from.MiddleName;
-            into.DegreeBefore = from.DegreeBefore;
-            into.DegreeAfter = from.DegreeAfter;
-            into.DefaultLang = from.DefaultLang;
-            into.Sex = from.Sex;
-            into.ImgBase64 = from.ImgBase64;
-            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
-
-            if (from.DBType != DBType.File && into.DBID != from.DBID)
-                into.Merges.Add(new DBMerge(from.DBID, from.DataBaseType));
-
-            into.Attributes = into.Attributes
-                .Concat(from.Attributes).GroupBy(a => a.Name) // one group for each attribute name
-                .SelectMany(g => g.Distinct(SpeakerAttribute.Comparer.Instance)) // unique attributes in each group (TODO: why?)
-                .ToList();
-        }
-
-        /// <summary>
-        /// copy constructor - copies all info, but with new DBID, ID ....
-        /// </summary>
-        /// <param name="s"></param>
-        private Speaker(Speaker s) : this()
-        {
-            MergeFrom(this, s);
-        }
-
         public Speaker(string aSpeakerFirstname, string aSpeakerSurname, Sexes aPohlavi, string aSpeakerFotoBase64) //constructor ktery vytvori speakera
             : this()
         {
@@ -116,15 +79,6 @@ namespace TranscriptionCore
 
         public static readonly int DefaultID = int.MinValue;
         public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
-
-        /// <summary>
-        /// copies all info, and generates new DBI and ID .... (deep copy)
-        /// </summary>
-        /// <param name="s"></param>
-        public Speaker Copy()
-        {
-            return new Speaker(this);
-        }
 
         string _dbid = null;
 

@@ -185,9 +185,8 @@ namespace TranscriptionCore.Serialization
 
             //merges
             sp.Merges.AddRange(xml.Elements("m").Select(m => new DBMerge(m.Attribute("dbid").Value, XmlValueToDBType(m.Attribute("dbtype").Value))));
-            sp.Attributes.AddRange(xml.Elements("a").Select(e => new SpeakerAttribute(e)));
+            sp.Attributes.AddRange(xml.Elements("a").Select(e => DeserializeAttribute(e)));
             sp.Elements = xml.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-
 
             if (sp.Elements.TryGetValue("dbid", out string rem))
             {
@@ -199,27 +198,10 @@ namespace TranscriptionCore.Serialization
 
             if (sp.Elements.TryGetValue("synchronized", out rem))
             {
-                DateTime date;
-                if (!string.IsNullOrWhiteSpace(rem)) //i had to load big archive with empty synchronized attribute .. this is significant speedup
-                {
-                    //problem with saving datetimes in local format
-                    try
-                    {
-                        date = XmlConvert.ToDateTime(rem, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
-                    }
-                    catch
-                    {
-                        if (DateTime.TryParse(rem, csCulture, DateTimeStyles.None, out date))
-                            date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
-                        else
-                            date = DateTime.Now;
-                    }
-                }
-                else
-                    date = DateTime.Now;
-                sp.Synchronized = date;
+                sp.Synchronized = string.IsNullOrWhiteSpace(rem)
+                    ? DateTime.Now
+                    : XmlValueToDateTime(rem);
             }
-
 
             if (sp.Elements.TryGetValue("middlename", out rem))
                 sp.MiddleName = rem;
@@ -259,6 +241,21 @@ namespace TranscriptionCore.Serialization
             return elm;
         }
 
+        static SpeakerAttribute DeserializeAttribute(XElement elm)
+        {
+            var name = elm.Attribute("name").Value;
+
+            var dateValue = elm.Attribute("date");
+            var date = dateValue != null
+                ? XmlValueToDateTime(dateValue.Value)
+                : default;
+
+            return new SpeakerAttribute(
+                default,
+                name,
+                elm.Value,
+                date);
+        }
 
         public static XElement Serialize(DBMerge merge)
             => new XElement("m",
@@ -314,7 +311,23 @@ namespace TranscriptionCore.Serialization
             }
         }
 
-        public static string DateTimeToXmlValue(DateTime dateTime)
-               => XmlConvert.ToString(dateTime, XmlDateTimeSerializationMode.Utc); //stored in UTC convert from local
+        static string DateTimeToXmlValue(DateTime dateTime)
+            => XmlConvert.ToString(dateTime, XmlDateTimeSerializationMode.Utc); //stored in UTC convert from local
+
+        static DateTime XmlValueToDateTime(string xmlValue)
+        {
+            //problem with saving datetimes in local format
+            try
+            {
+                return XmlConvert.ToDateTime(xmlValue, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
+            }
+            catch
+            {
+                return DateTime.TryParse(xmlValue, csCulture, DateTimeStyles.None, out var date)
+                    ? TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local)
+                    : DateTime.Now;
+            }
+
+        }
     }
 }

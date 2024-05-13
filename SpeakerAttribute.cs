@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Xml;
-using System.Xml.Linq;
 
 namespace TranscriptionCore
 {
@@ -16,44 +13,12 @@ namespace TranscriptionCore
         public string Value { get; set; }
         public DateTime Date { get; set; }
 
-        public SpeakerAttribute(string id, string name, string value)
+        public SpeakerAttribute(string id, string name, string value, DateTime date = default)
         {
             ID = id;
             Name = name;
             Value = value;
-        }
-
-        public SpeakerAttribute(XElement elm)
-        {
-            this.Name = elm.Attribute("name").Value;
-
-            DateTime date = default;
-
-            if (elm.Attribute("date") != null)
-            {
-                try
-                {
-                    date = XmlConvert.ToDateTime(elm.Attribute("date").Value, XmlDateTimeSerializationMode.Local); //stored in UTC convert to local
-                }
-                catch
-                {
-                    if (DateTime.TryParse(elm.Attribute("date").Value, CultureInfo.CreateSpecificCulture("cs"), DateTimeStyles.None, out date))
-                        date = TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local);
-                    else
-                        date = DateTime.Now;
-                }
-            }
-            this.Date = date;
-            this.Value = elm.Value;
-        }
-
-        //copy constructor
-        public SpeakerAttribute(SpeakerAttribute a)
-        {
-            this.ID = a.ID;
-            this.Name = a.Name;
-            this.Value = a.Value;
-            this.Date = a.Date;
+            Date = date;
         }
 
         public class Comparer : IEqualityComparer<SpeakerAttribute>

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
-using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -45,7 +44,7 @@ namespace TranscriptionCore
                     this._Speakers = new List<Speaker>();
                     for (int i = 0; i < aSpeakers._Speakers.Count; i++)
                     {
-                        this._Speakers.Add(aSpeakers._Speakers[i].Copy());
+                        this._Speakers.Add(aSpeakers._Speakers[i].CreateCopy());
                     }
                 }
             }

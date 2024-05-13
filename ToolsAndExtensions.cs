@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Xml.Linq;
 using TranscriptionCore.Serialization;
 
@@ -59,5 +61,43 @@ namespace TranscriptionCore
 
         public static XElement Serialize(this Speaker speaker, bool saveAll = false)
             => SerializationV3.SerializeSpeaker(speaker, saveAll);
+
+        /// <summary> copies all info, and generates new DBI and ID .... (deep copy) </summary>
+        public static Speaker CreateCopy(this Speaker original)
+        {
+            var speaker = new Speaker();
+            MergeFrom(speaker, original);
+            return speaker;
+        }
+
+        /// <summary> update values from another speaker .. used for merging, probably not doing what user assumes :) </summary>
+        static void MergeFrom(Speaker into, Speaker from)
+        {
+            into.DataBaseType = from.DataBaseType;
+            into.Surname = from.Surname;
+            into.FirstName = from.FirstName;
+            into.MiddleName = from.MiddleName;
+            into.DegreeBefore = from.DegreeBefore;
+            into.DegreeAfter = from.DegreeAfter;
+            into.DefaultLang = from.DefaultLang;
+            into.Sex = from.Sex;
+            into.ImgBase64 = from.ImgBase64;
+            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
+
+            if (from.DBType != DBType.File && into.DBID != from.DBID)
+                into.Merges.Add(new DBMerge(from.DBID, from.DataBaseType));
+
+            into.Attributes = into.Attributes
+                .Concat(from.Attributes).GroupBy(a => a.Name) // one group for each attribute name
+                .SelectMany(g => g.Distinct(SpeakerAttribute.Comparer.Instance)) // unique attributes in each group (TODO: why?)
+                .ToList();
+        }
+
+        public static SpeakerAttribute CreateCopy(this SpeakerAttribute original)
+            => new SpeakerAttribute(
+                original.ID,
+                original.Name,
+                original.Value,
+                original.Date);
     }
 }
