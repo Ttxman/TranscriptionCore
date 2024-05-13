@@ -51,10 +51,8 @@ namespace TranscriptionCore
         {
             Sex = Sexes.X;
             ImgBase64 = null;
-            DefaultLang = Langs[0];
+            DefaultLang = SpeakerLanguages.Default;
         }
-
-        public static readonly List<string> Langs = new List<string> { "CZ", "SK", "RU", "HR", "PL", "EN", "DE", "ES", "IT", "CU", "--", "😃" };
 
         public Speaker(XElement s)
             : this()
