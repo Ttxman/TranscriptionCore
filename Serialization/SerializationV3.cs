@@ -80,10 +80,10 @@ namespace TranscriptionCore.Serialization
             );
 
             string val = "file";
-            if (speaker.DataBaseType != DBType.File)
+            if (speaker.DbId.DBtype != DBType.File)
             {
                 elm.Add(new XAttribute("dbid", speaker.GetDbId()));
-                elm.Add(new XAttribute("dbtype", DBTypeToXmlValue(speaker.DataBaseType)));
+                elm.Add(new XAttribute("dbtype", DBTypeToXmlValue(speaker.DbId.DBtype)));
             }
 
             if (!string.IsNullOrWhiteSpace(speaker.MiddleName))
@@ -95,7 +95,7 @@ namespace TranscriptionCore.Serialization
             if (!string.IsNullOrWhiteSpace(speaker.DegreeAfter))
                 elm.Add(new XAttribute("degreeafter", speaker.DegreeAfter));
 
-            if (speaker.DataBaseType != DBType.File)
+            if (speaker.DbId.DBtype != DBType.File)
                 elm.Add(new XAttribute("synchronized", DateTimeToXmlValue(DateTime.UtcNow)));
 
             if (speaker.PinnedToDocument)
@@ -184,7 +184,11 @@ namespace TranscriptionCore.Serialization
             sp.DefaultLang = xml.Attribute("lang").Value.ToUpper();
 
             //merges
-            sp.Merges.AddRange(xml.Elements("m").Select(m => new DBMerge(m.Attribute("dbid").Value, XmlValueToDBType(m.Attribute("dbtype").Value))));
+            sp.Merges.AddRange(xml.Elements("m").Select(m => new SpeakerDbId
+            {
+                DBID = m.Attribute("dbid").Value,
+                DBtype = XmlValueToDBType(m.Attribute("dbtype").Value)
+            }));
             sp.Attributes.AddRange(xml.Elements("a").Select(e => DeserializeAttribute(e)));
             sp.Elements = xml.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
 
@@ -192,7 +196,7 @@ namespace TranscriptionCore.Serialization
             {
                 sp.SetDbId(rem);
                 if (sp.Elements.TryGetValue("dbtype", out rem))
-                    sp.DataBaseType = XmlValueToDBType(rem);
+                    sp.DbId.DBtype = XmlValueToDBType(rem);
 
             }
 
@@ -257,7 +261,7 @@ namespace TranscriptionCore.Serialization
                 date);
         }
 
-        public static XElement Serialize(DBMerge merge)
+        public static XElement Serialize(SpeakerDbId merge)
             => new XElement("m",
                 new XAttribute("dbid", merge.DBID),
                 new XAttribute("dbtype", DBTypeToXmlValue(merge.DBtype)));

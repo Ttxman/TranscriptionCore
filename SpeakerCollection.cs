@@ -63,7 +63,7 @@ namespace TranscriptionCore
 
         public Speaker GetSpeakerByDBID(string dbid)
         {
-            return _Speakers.FirstOrDefault(s => s.DBID == dbid || s.Merges.Any(m=>m.DBID ==dbid));
+            return _Speakers.FirstOrDefault(s => s.DbId.DBID == dbid || s.Merges.Any(m=>m.DBID ==dbid));
         }
 
         public Speaker GetSpeakerByName(string fullname)

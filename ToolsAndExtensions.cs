@@ -74,7 +74,7 @@ namespace TranscriptionCore
         /// <summary> update values from another speaker .. used for merging, probably not doing what user assumes :) </summary>
         static void MergeFrom(Speaker into, Speaker from)
         {
-            into.DataBaseType = from.DataBaseType;
+            into.DbId.DBtype = from.DbId.DBtype;
             into.Surname = from.Surname;
             into.FirstName = from.FirstName;
             into.MiddleName = from.MiddleName;
@@ -83,10 +83,16 @@ namespace TranscriptionCore
             into.DefaultLang = from.DefaultLang;
             into.Sex = from.Sex;
             into.ImgBase64 = from.ImgBase64;
-            into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
+            into.Merges = new List<SpeakerDbId>(from.Merges.Concat(into.Merges));
 
-            if (from.DBType != DBType.File && into.GetDbId() != from.DBID)
-                into.Merges.Add(new DBMerge(from.GetDbId(), from.DataBaseType));
+            if (from.DbId.DBtype != DBType.File && into.GetDbId() != from.DbId.DBID)
+            {
+                into.Merges.Add(new SpeakerDbId
+                {
+                    DBID = from.GetDbId(),
+                    DBtype = from.DbId.DBtype
+                });
+            }
 
             into.Attributes = into.Attributes
                 .Concat(from.Attributes).GroupBy(a => a.Name) // one group for each attribute name
@@ -104,13 +110,13 @@ namespace TranscriptionCore
         /// <summary> Read the db id, it will be generated if not set yet </summary>
         public static string GetDbId(this Speaker speaker)
         {
-            if (speaker.DBID == null && speaker.DBType != DBType.File)
+            if (speaker.DbId.DBID == null && speaker.DbId.DBtype != DBType.File)
             {
                 // NOTE: DBID is not used in case of file scope
-                speaker.DBID = Guid.NewGuid().ToString();
+                speaker.DbId.DBID = Guid.NewGuid().ToString();
             }
 
-            return speaker.DBID;
+            return speaker.DbId.DBID;
         }
 
         public static void SetDbId(this Speaker speaker, string newId)
@@ -118,24 +124,24 @@ namespace TranscriptionCore
             if (string.IsNullOrWhiteSpace(newId))
             {
                 // request to reset DBID
-                speaker.DBID = null;
+                speaker.DbId.DBID = null;
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(speaker.DBID))
+            if (string.IsNullOrWhiteSpace(speaker.DbId.DBID))
             {
                 // first DBID assignment
-                speaker.DBID = newId;
+                speaker.DbId.DBID = newId;
                 return;
             }
 
-            if (speaker.DataBaseType == DBType.User)
+            if (speaker.DbId.DBtype == DBType.User)
             {
                 // modification is disabled for user db type TODO: why?
                 throw new ArgumentException("cannot change DBID when Dabase is User");
             }
 
-            speaker.DBID = newId;
+            speaker.DbId.DBID = newId;
         }
     }
 }

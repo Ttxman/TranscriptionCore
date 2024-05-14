@@ -28,13 +28,12 @@ namespace TranscriptionCore
 
         public string DefaultLang { get; set; }
 
-        public DBType DataBaseType { get; set; }
-
         public DateTime Synchronized { get; set; }
 
-        public string DBID { get; set; }
+        public SpeakerDbId DbId { get; set; } = new SpeakerDbId();
 
-        public List<DBMerge> Merges { get; set; } = new List<DBMerge>();
+        /// <summary> List of other identifications for this speaker </summary>
+        public List<SpeakerDbId> Merges { get; set; } = new List<SpeakerDbId>();
 
         public Dictionary<string, string> Elements { get; set; } = new Dictionary<string, string>();
 
@@ -66,15 +65,15 @@ namespace TranscriptionCore
             return FullName + " (" + DefaultLang + ")";
         }
 
-        public static readonly int DefaultID = int.MinValue;
-        public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
 
-        /// <summary> alias for DataBaseType </summary>
-        public DBType DBType
+        public static readonly int DefaultID = int.MinValue;
+
+        public static readonly Speaker DefaultSpeaker = new Speaker()
         {
-            get => this.DataBaseType;
-            set => this.DataBaseType = value;
-        }
+            SerializationID = DefaultID,
+            DbId = new SpeakerDbId { DBID = new Guid().ToString() }
+        };
+
 
         public string FullName
         {
