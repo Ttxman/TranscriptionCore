@@ -385,7 +385,7 @@ namespace TranscriptionCore.Serialization
 
                     Speaker sp = new Speaker();
                     sp.DBType = DBType.File;
-                    sp.DBID = null;
+                    sp.SetDbId(null);
                     reader.ReadStartElement("Speaker");
                     while (!end)
                     {

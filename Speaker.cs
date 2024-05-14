@@ -12,7 +12,7 @@ namespace TranscriptionCore
         /// <summary> Do not delete from document, when not used in any paragraph </summary>
         public bool PinnedToDocument { get; set; } = false;
 
-        /// <summary> Serialization ID, Changed when Transcription is serialized. For user ID use DBID property </summary>
+        /// <summary> Id of the speaker unique only in the parent transcription document </summary>
         internal int SerializationID { get; set; }
 
         public string FirstName { get; set; } = "";
@@ -32,6 +32,7 @@ namespace TranscriptionCore
 
         public DateTime Synchronized { get; set; }
 
+        public string DBID { get; set; }
 
         public List<DBMerge> Merges { get; set; } = new List<DBMerge>();
 
@@ -67,40 +68,6 @@ namespace TranscriptionCore
 
         public static readonly int DefaultID = int.MinValue;
         public static readonly Speaker DefaultSpeaker = new Speaker() { SerializationID = DefaultID, DBID = new Guid().ToString() };
-
-        string _dbid = null;
-
-        /// <summary>
-        /// if not set, GUID is automatically generated on first read
-        /// if DataBaseType is DBType.User - modification is disabled
-        /// if DataBaseType is DBType.File - processing of value is disabled
-        /// SHOULD be always UNIQUE GUID-like string (NanoTrans expects that ids from DBType.API and DBType.User can't conflict)
-        /// empty string is automatically converted to null, dbid will be generated on next read
-        /// </summary>
-        public string DBID
-        {
-            get
-            {
-                if (_dbid == null && DBType != DBType.File)
-                {
-                    _dbid = Guid.NewGuid().ToString();
-                }
-
-                return _dbid;
-            }
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    _dbid = null;
-                else if (string.IsNullOrWhiteSpace(_dbid))
-                    _dbid = value;
-                else if (DataBaseType == DBType.User)
-                    throw new ArgumentException("cannot change DBID when Dabase is User");
-                else
-                    _dbid = value;
-
-            }
-        }
 
         /// <summary> alias for DataBaseType </summary>
         public DBType DBType

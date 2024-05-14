@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -84,8 +85,8 @@ namespace TranscriptionCore
             into.ImgBase64 = from.ImgBase64;
             into.Merges = new List<DBMerge>(from.Merges.Concat(into.Merges));
 
-            if (from.DBType != DBType.File && into.DBID != from.DBID)
-                into.Merges.Add(new DBMerge(from.DBID, from.DataBaseType));
+            if (from.DBType != DBType.File && into.GetDbId() != from.DBID)
+                into.Merges.Add(new DBMerge(from.GetDbId(), from.DataBaseType));
 
             into.Attributes = into.Attributes
                 .Concat(from.Attributes).GroupBy(a => a.Name) // one group for each attribute name
@@ -99,5 +100,42 @@ namespace TranscriptionCore
                 original.Name,
                 original.Value,
                 original.Date);
+
+        /// <summary> Read the db id, it will be generated if not set yet </summary>
+        public static string GetDbId(this Speaker speaker)
+        {
+            if (speaker.DBID == null && speaker.DBType != DBType.File)
+            {
+                // NOTE: DBID is not used in case of file scope
+                speaker.DBID = Guid.NewGuid().ToString();
+            }
+
+            return speaker.DBID;
+        }
+
+        public static void SetDbId(this Speaker speaker, string newId)
+        {
+            if (string.IsNullOrWhiteSpace(newId))
+            {
+                // request to reset DBID
+                speaker.DBID = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(speaker.DBID))
+            {
+                // first DBID assignment
+                speaker.DBID = newId;
+                return;
+            }
+
+            if (speaker.DataBaseType == DBType.User)
+            {
+                // modification is disabled for user db type TODO: why?
+                throw new ArgumentException("cannot change DBID when Dabase is User");
+            }
+
+            speaker.DBID = newId;
+        }
     }
 }

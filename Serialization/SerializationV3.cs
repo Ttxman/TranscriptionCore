@@ -82,7 +82,7 @@ namespace TranscriptionCore.Serialization
             string val = "file";
             if (speaker.DataBaseType != DBType.File)
             {
-                elm.Add(new XAttribute("dbid", speaker.DBID));
+                elm.Add(new XAttribute("dbid", speaker.GetDbId()));
                 elm.Add(new XAttribute("dbtype", DBTypeToXmlValue(speaker.DataBaseType)));
             }
 
@@ -190,7 +190,7 @@ namespace TranscriptionCore.Serialization
 
             if (sp.Elements.TryGetValue("dbid", out string rem))
             {
-                sp.DBID = rem;
+                sp.SetDbId(rem);
                 if (sp.Elements.TryGetValue("dbtype", out rem))
                     sp.DataBaseType = XmlValueToDBType(rem);
 
