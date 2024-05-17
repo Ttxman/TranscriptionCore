@@ -61,10 +61,7 @@ namespace TranscriptionCore
         }
 
         public override string ToString()
-        {
-            return FullName + " (" + DefaultLang + ")";
-        }
-
+            => $"{FullName} ({DefaultLang})";
 
         public static readonly int DefaultID = int.MinValue;
 
