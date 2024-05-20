@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -271,7 +270,7 @@ namespace TranscriptionCore
         public TranscriptionParagraph(XElement e)
         {
 
-            if (!e.CheckRequiredAtributes("b", "e", "s"))
+            if (!e.CheckRequiredAttributes("b", "e", "s"))
                 throw new ArgumentException("required attribute missing on paragraph (b,e,s)");
 
             Phrases = new VirtualTypeList<TranscriptionPhrase>(this, this._children);
