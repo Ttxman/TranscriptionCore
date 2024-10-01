@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Xml.Linq;
 
 namespace TranscriptionCore
@@ -65,20 +64,6 @@ namespace TranscriptionCore
 
         #region serializtion
         public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
-
-        public static TranscriptionChapter DeserializeV2(XElement c, bool isStrict)
-        {
-            TranscriptionChapter chap = new TranscriptionChapter();
-            chap.Name = c.Attribute("name").Value;
-            chap.Elements = c.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            chap.Elements.Remove("name");
-            foreach (var s in c.Elements(isStrict ? "section" : "se").Select(s => (TranscriptionElement)TranscriptionSection.DeserializeV2(s, isStrict)))
-                chap.Add(s);
-
-            return chap;
-
-        }
 
         public TranscriptionChapter(XElement c)
         {
@@ -91,16 +76,6 @@ namespace TranscriptionCore
 
         }
 
-        public XElement Serialize()
-        {
-
-            XElement elm = new XElement("ch",
-                Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { new XAttribute("name", Name), }),
-                Sections.Select(s => s.Serialize())
-            );
-
-            return elm;
-        }
         #endregion
 
 
