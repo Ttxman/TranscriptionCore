@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -14,7 +12,7 @@ namespace TranscriptionCore
     /// </summary>
     public sealed class TranscriptionPhrase : TranscriptionElement
     {
-        private string _text = "";
+        internal string _text = "";
 
         public override string Text
         {
@@ -27,7 +25,7 @@ namespace TranscriptionCore
             }
         }
 
-        private string _phonetics = "";
+        internal string _phonetics = "";
 
         public override string Phonetics
         {
@@ -47,7 +45,7 @@ namespace TranscriptionCore
 
         #region serialization
         public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
+        internal static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
         /// <summary>
         /// V2 serialization
@@ -95,56 +93,11 @@ namespace TranscriptionCore
         /// <param name="e"></param>
         public TranscriptionPhrase(XElement e)
         {
-            Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Elements.Remove("b");
-            Elements.Remove("e");
-            Elements.Remove("f");
-
-
-            this._phonetics = (e.Attribute("f") ?? EmptyAttribute).Value;
-            this._text = e.Value.Trim('\r', '\n');
-            if (e.Attribute("b") != null)
-            {
-                string val = e.Attribute("b").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                {
-                    Begin = TimeSpan.FromMilliseconds(ms);
-                }
-                else
-                    Begin = XmlConvert.ToTimeSpan(val);
-
-            }
-
-            if (e.Attribute("e") != null)
-            {
-                string val = e.Attribute("e").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                {
-                    End = TimeSpan.FromMilliseconds(ms);
-                }
-                else
-                    End = XmlConvert.ToTimeSpan(val);
-            }
+            SerializationV3.DeserializePhrase(e, this);
         }
+        
+        public XElement Serialize() => SerializationV3.SerializePhrase(this);
 
-
-        public XElement Serialize()
-        {
-            XElement elm = new XElement("p",
-                Elements.Select(e =>
-                    new XAttribute(e.Key, e.Value))
-                    .Union(new[]{ 
-                    new XAttribute("b", Begin),
-                    new XAttribute("e", End),
-                    new XAttribute("f", _phonetics),
-                    }),
-                    _text.Trim('\r', '\n')
-            );
-
-            return elm;
-        }
         #endregion
 
 

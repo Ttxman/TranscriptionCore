@@ -25,7 +25,7 @@ namespace TranscriptionCore.Serialization
 
             var pars = new XElement("transcription", xmlAttributes,
                 transcription.Meta,
-                transcription.Chapters.Select(c => SerializeChapter(c)),
+                transcription.Chapters.Select(SerializeChapter),
                 SerializeSpeakers(transcription, saveSpeakerDetails)
             );
 
@@ -130,7 +130,6 @@ namespace TranscriptionCore.Serialization
             storage.Meta = transcription.Element("meta");
             if (storage.Meta == null)
                 storage.Meta = Transcription.EmptyMeta();
-            var chapters = transcription.Elements("ch");
 
 
             storage.Elements = transcription.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
@@ -147,8 +146,12 @@ namespace TranscriptionCore.Serialization
             storage.Elements.Remove("documentid");
             storage.Elements.Remove("created");
 
-            foreach (var c in chapters.Select(c => new TranscriptionChapter(c)))
-                storage.Add(c);
+            foreach (var c in transcription.Elements("ch"))
+            {
+                var ch = new TranscriptionChapter();
+                DeserializeChapter(c, ch);
+                storage.Add(ch);
+            }
 
             storage.Speakers = DeserializeSpeakerCollection(transcription.Element("sp"));
             storage.AssingSpeakersByID();
@@ -237,12 +240,178 @@ namespace TranscriptionCore.Serialization
 
         public static XElement SerializeChapter(TranscriptionChapter chapter)
         {
-            XElement elm = new XElement("ch",
+            var elm = new XElement("ch",
                 chapter.Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { new XAttribute("name", chapter.Name) }),
-                chapter.Sections.Select(s => s.Serialize())
+                chapter.Sections.Select(SerializeSection)
             );
 
             return elm;
+        }
+
+        public static void DeserializeChapter(XElement c, TranscriptionChapter ch)
+        {
+            ch.Name = c.Attribute("name").Value;
+            ch.Elements = c.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            ch.Elements.Remove("name");
+            foreach (var s in c.Elements("se"))
+            {
+                var sec = new TranscriptionSection();
+                DeserializeSection(s, sec);
+                ch.Add(sec);
+            }
+        }
+
+        public static XElement SerializeSection(TranscriptionSection section)
+        {
+            return new XElement("se",
+                section.Elements
+                    .Select(e => new XAttribute(e.Key, e.Value))
+                    .Union([new XAttribute("name", section.Name)]),
+                section.Paragraphs.Select(SerializeParagraph)
+            );
+        }
+
+        public static void DeserializeSection(XElement e, TranscriptionSection sec)
+        {
+            sec.Name = e.Attribute("name").Value;
+            sec.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            sec.Elements.Remove("name");
+            foreach (var p in e.Elements("pa"))
+            {
+                var para = new TranscriptionParagraph();
+                DeserializeParagraph(p, para);
+                sec.Add(para);
+            }
+        }
+
+        public static XElement SerializeParagraph(TranscriptionParagraph para)
+        {
+            var elm = new XElement("pa",
+                para.Elements.Select(e => new XAttribute(e.Key, e.Value)).Union([
+                    new XAttribute("b", para.Begin),
+                    new XAttribute("e", para.End),
+                    new XAttribute("a", para.AttributeString),
+                    new XAttribute("s", para.InternalID) // DO NOT use _speakerID, it is not equivalent
+                ]),
+                para.Phrases.Select(p => p.Serialize())
+            );
+
+            if (para._lang != null)
+                elm.Add(new XAttribute("l", para.Language.ToLower()));
+
+            return elm;
+        }
+
+        public static void DeserializeParagraph(XElement e, TranscriptionParagraph para)
+        {
+            if (!e.CheckRequiredAttributes("b", "e", "s"))
+                throw new ArgumentException("required attribute missing on paragraph (b,e,s)");
+
+            para._internalID = int.Parse(e.Attribute("s").Value);
+            para.AttributeString = (e.Attribute("a") ?? TranscriptionParagraph.EmptyAttribute).Value;
+
+            para.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            
+            foreach (var p in e.Elements("p"))
+            {
+                var phrase = new TranscriptionPhrase();
+                DeserializePhrase(p, phrase);
+                para.Add(phrase);
+            }
+
+            string bfr;
+            if (para.Elements.TryGetValue("a", out bfr))
+                para.AttributeString = bfr;
+
+            if (para.Elements.TryGetValue("b", out bfr))
+            {
+                int ms;
+                if (int.TryParse(bfr, out ms))
+                    para.Begin = TimeSpan.FromMilliseconds(ms);
+                else
+                    para.Begin = XmlConvert.ToTimeSpan(bfr);
+            }
+            else
+            {
+                var ch = para._children.FirstOrDefault();
+                para.Begin = ch?.Begin ?? TimeSpan.Zero;
+            }
+
+            if (para.Elements.TryGetValue("e", out bfr))
+            {
+                int ms;
+                if (int.TryParse(bfr, out ms))
+                    para.End = TimeSpan.FromMilliseconds(ms);
+                else
+                    para.End = XmlConvert.ToTimeSpan(bfr);
+            }
+            else
+            {
+                var ch = para._children.LastOrDefault();
+                para.End = ch?.Begin ?? TimeSpan.Zero;
+            }
+
+            if (para.Elements.TryGetValue("l", out bfr))
+            {
+                if (!string.IsNullOrWhiteSpace(bfr))
+                    para.Language = bfr.ToUpper();
+            }
+
+            para.Elements.Remove("b");
+            para.Elements.Remove("e");
+            para.Elements.Remove("s");
+            para.Elements.Remove("a");
+            para.Elements.Remove("l");
+        }
+
+        public static XElement SerializePhrase(TranscriptionPhrase phrase)
+        {
+            var elm = new XElement("p",
+                phrase.Elements.Select(e => new XAttribute(e.Key, e.Value))
+                    .Union([
+                        new XAttribute("b", phrase.Begin),
+                        new XAttribute("e", phrase.End),
+                        new XAttribute("f", phrase.Phonetics)
+                    ]),
+                phrase.Text.Trim('\r', '\n')
+            );
+
+            return elm;
+        }
+
+        public static void DeserializePhrase(XElement e, TranscriptionPhrase phrase)
+        {
+            phrase.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            phrase.Elements.Remove("b");
+            phrase.Elements.Remove("e");
+            phrase.Elements.Remove("f");
+
+            phrase._phonetics = (e.Attribute("f") ?? TranscriptionPhrase.EmptyAttribute).Value;
+            phrase._text = e.Value.Trim('\r', '\n');
+            if (e.Attribute("b") != null)
+            {
+                string val = e.Attribute("b").Value;
+                int ms;
+                if (int.TryParse(val, out ms))
+                {
+                    phrase.Begin = TimeSpan.FromMilliseconds(ms);
+                }
+                else
+                    phrase.Begin = XmlConvert.ToTimeSpan(val);
+
+            }
+
+            if (e.Attribute("e") != null)
+            {
+                string val = e.Attribute("e").Value;
+                int ms;
+                if (int.TryParse(val, out ms))
+                {
+                    phrase.End = TimeSpan.FromMilliseconds(ms);
+                }
+                else
+                    phrase.End = XmlConvert.ToTimeSpan(val);
+            }
         }
 
         static SpeakerAttribute DeserializeAttribute(XElement elm)

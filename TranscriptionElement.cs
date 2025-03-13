@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Text;
 
 namespace TranscriptionCore
 {
@@ -180,7 +177,7 @@ namespace TranscriptionCore
         }
 
 
-        protected readonly List<TranscriptionElement> _children = new List<TranscriptionElement>();
+        protected internal readonly List<TranscriptionElement> _children = [];
 
 
         private VirtualTypeList<TranscriptionElement> _vChildren;

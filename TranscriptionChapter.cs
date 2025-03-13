@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -63,17 +64,11 @@ namespace TranscriptionCore
 
 
         #region serializtion
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
+        public Dictionary<string, string> Elements = new();
 
-        public TranscriptionChapter(XElement c)
+        public TranscriptionChapter(XElement xml) : this()
         {
-            Sections = new VirtualTypeList<TranscriptionSection>(this, this._children);
-            Name = c.Attribute("name").Value;
-            Elements = c.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Elements.Remove("name");
-            foreach (var s in c.Elements("se").Select(s => (TranscriptionElement)new TranscriptionSection(s)))
-                Add(s);
-
+            SerializationV3.DeserializeChapter(xml, this);
         }
 
         #endregion

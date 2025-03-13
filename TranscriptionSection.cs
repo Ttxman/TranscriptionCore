@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -78,26 +78,13 @@ namespace TranscriptionCore
             return tsec;
         }
 
-        public TranscriptionSection(XElement e)
+        public TranscriptionSection(XElement e) : this()
         {
-            this.Paragraphs = new VirtualTypeList<TranscriptionParagraph>(this, this._children);
-            Name = e.Attribute("name").Value;
-            Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            Elements.Remove("name");
-            foreach (var p in e.Elements("pa").Select(p => (TranscriptionElement)new TranscriptionParagraph(p)))
-                Add(p);
-
+            SerializationV3.DeserializeSection(e, this);
         }
 
-        public XElement Serialize()
-        {
+        public XElement Serialize() => SerializationV3.SerializeSection(this);
 
-            XElement elm = new XElement("se", Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] { new XAttribute("name", Name), }),
-                Paragraphs.Select(p => p.Serialize())
-            );
-
-            return elm;
-        }
         #endregion
 
 

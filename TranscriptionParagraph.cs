@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
+using TranscriptionCore.Serialization;
 
 namespace TranscriptionCore
 {
@@ -141,7 +142,7 @@ namespace TranscriptionCore
             }
         }
 
-        private int _internalID = Speaker.DefaultID;
+        internal int _internalID = Speaker.DefaultID;
 
         /// <summary>
         /// Used only for speaker identification when serializing or deserializing, can change unexpectedly
@@ -208,7 +209,7 @@ namespace TranscriptionCore
 
         #region serialization
         public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
+        internal static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
         /// <summary>
         /// V2 deserialization beware of local variable names
@@ -246,7 +247,7 @@ namespace TranscriptionCore
             else
             {
                 var ch = par._children.FirstOrDefault();
-                par.Begin = ch == null ? TimeSpan.Zero : ch.Begin;
+                par.Begin = ch?.Begin ?? TimeSpan.Zero;
             }
 
             if (e.Attribute(isStrict ? "end" : "e") != null)
@@ -267,89 +268,13 @@ namespace TranscriptionCore
             return par;
         }
 
-        public TranscriptionParagraph(XElement e)
+        public TranscriptionParagraph(XElement e) : this()
         {
-
-            if (!e.CheckRequiredAttributes("b", "e", "s"))
-                throw new ArgumentException("required attribute missing on paragraph (b,e,s)");
-
-            Phrases = new VirtualTypeList<TranscriptionPhrase>(this, this._children);
-            _internalID = int.Parse(e.Attribute("s").Value);
-            AttributeString = (e.Attribute("a") ?? EmptyAttribute).Value;
-
-            Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-
-
-
-            foreach (var p in e.Elements("p").Select(p => (TranscriptionElement)new TranscriptionPhrase(p)))
-                Add(p);
-
-            string bfr;
-            if (Elements.TryGetValue("a", out bfr))
-                this.AttributeString = bfr;
-
-            if (Elements.TryGetValue("b", out bfr))
-            {
-                int ms;
-                if (int.TryParse(bfr, out ms))
-                    Begin = TimeSpan.FromMilliseconds(ms);
-                else
-                    Begin = XmlConvert.ToTimeSpan(bfr);
-            }
-            else
-            {
-                var ch = _children.FirstOrDefault();
-                Begin = ch == null ? TimeSpan.Zero : ch.Begin;
-            }
-
-            if (Elements.TryGetValue("e", out bfr))
-            {
-                int ms;
-                if (int.TryParse(bfr, out ms))
-                    End = TimeSpan.FromMilliseconds(ms);
-                else
-                    End = XmlConvert.ToTimeSpan(bfr);
-            }
-            else
-            {
-                var ch = _children.LastOrDefault();
-                End = ch == null ? TimeSpan.Zero : ch.Begin;
-            }
-
-
-
-
-            if (Elements.TryGetValue("l", out bfr))
-            {
-                if (!string.IsNullOrWhiteSpace(bfr))
-                    Language = bfr.ToUpper();
-            }
-
-            Elements.Remove("b");
-            Elements.Remove("e");
-            Elements.Remove("s");
-            Elements.Remove("a");
-            Elements.Remove("l");
-
+            SerializationV3.DeserializeParagraph(e, this);
         }
 
-        public XElement Serialize()
-        {
-            XElement elm = new XElement("pa",
-                Elements.Select(e => new XAttribute(e.Key, e.Value)).Union(new[] {
-                    new XAttribute("b", Begin),
-                    new XAttribute("e", End),
-                    new XAttribute("a", AttributeString),
-                    new XAttribute("s", InternalID), //DO NOT use _speakerID,  it is not equivalent
-                }),
-                Phrases.Select(p => p.Serialize())
-            );
+        public XElement Serialize() => SerializationV3.SerializeParagraph(this);
 
-            if (_lang != null)
-                elm.Add(new XAttribute("l", Language.ToLower()));
-
-            return elm;
-        }
         #endregion
 
         /// <summary>
@@ -415,12 +340,11 @@ namespace TranscriptionCore
             }
         }
 
-        string _lang = null;
+        internal string _lang = null;
         public string Language
         {
             get
             {
-
                 return _lang ?? Speaker.DefaultLang;
             }
             set
