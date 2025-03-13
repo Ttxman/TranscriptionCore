@@ -61,29 +61,18 @@ namespace TranscriptionCore
         public int Speaker;
 
 
-
-
         #region serializace nova
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        private static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
-        public static TranscriptionSection DeserializeV2(XElement e, bool isStrict)
-        {
-            TranscriptionSection tsec = new TranscriptionSection();
-            tsec.Name = e.Attribute("name").Value;
-            tsec.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            tsec.Elements.Remove("name");
-            foreach (var p in e.Elements(isStrict ? "paragraph" : "pa").Select(p => (TranscriptionElement)TranscriptionParagraph.DeserializeV2(p, isStrict)))
-                tsec.Add(p);
 
-            return tsec;
-        }
+        public Dictionary<string, string> Elements = new();
+
+        public static TranscriptionSection DeserializeV2(XElement e, bool isStrict)
+            => SerializationV2.DeserializeSection(e, isStrict);
 
         public TranscriptionSection(XElement e) : this()
-        {
-            SerializationV3.DeserializeSection(e, this);
-        }
+            => SerializationV3.DeserializeSection(e, this);
 
-        public XElement Serialize() => SerializationV3.SerializeSection(this);
+        public XElement Serialize()
+            => SerializationV3.SerializeSection(this);
 
         #endregion
 

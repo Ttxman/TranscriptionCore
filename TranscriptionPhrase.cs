@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Xml;
 using System.Xml.Linq;
 using TranscriptionCore.Serialization;
 
@@ -41,62 +39,19 @@ namespace TranscriptionCore
             }
         }
 
-
-
         #region serialization
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        internal static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
-        /// <summary>
-        /// V2 serialization
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="isStrict"></param>
+        public Dictionary<string, string> Elements = new();
+        internal static readonly XAttribute EmptyAttribute = new("empty", "");
+
         public static TranscriptionPhrase DeserializeV2(XElement e, bool isStrict)
-        {
-            TranscriptionPhrase phr = new TranscriptionPhrase();
-            phr.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            phr.Elements.Remove(isStrict ? "begin" : "b");
-            phr.Elements.Remove(isStrict ? "end" : "e");
-            phr.Elements.Remove(isStrict ? "fon" : "f");
+            => SerializationV2.DeserializePhrase(e, isStrict);
 
-
-            phr._phonetics = (e.Attribute(isStrict ? "fon" : "f") ?? EmptyAttribute).Value;
-            phr._text = e.Value.Trim('\r', '\n');
-            if (e.Attribute(isStrict ? "begin" : "b") != null)
-            {
-                string val = e.Attribute(isStrict ? "begin" : "b").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                    phr.Begin = TimeSpan.FromMilliseconds(ms);
-                else
-                    phr.Begin = XmlConvert.ToTimeSpan(val);
-
-            }
-
-            if (e.Attribute(isStrict ? "end" : "e") != null)
-            {
-                string val = e.Attribute(isStrict ? "end" : "e").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                    phr.End = TimeSpan.FromMilliseconds(ms);
-                else
-                    phr.End = XmlConvert.ToTimeSpan(val);
-            }
-
-            return phr;
-        }
-
-        /// <summary>
-        /// v3 serialization
-        /// </summary>
-        /// <param name="e"></param>
         public TranscriptionPhrase(XElement e)
-        {
-            SerializationV3.DeserializePhrase(e, this);
-        }
-        
-        public XElement Serialize() => SerializationV3.SerializePhrase(this);
+            => SerializationV3.DeserializePhrase(e, this);
+
+        public XElement Serialize()
+            => SerializationV3.SerializePhrase(this);
 
         #endregion
 
@@ -113,7 +68,6 @@ namespace TranscriptionCore
         public TranscriptionPhrase()
             : base()
         {
-
         }
 
         public TranscriptionPhrase(TimeSpan begin, TimeSpan end, string aWords)

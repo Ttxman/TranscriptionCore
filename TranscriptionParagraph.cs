@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using System.Xml.Linq;
 using TranscriptionCore.Serialization;
 
@@ -119,10 +118,8 @@ namespace TranscriptionCore
                 {
                     return Enum.GetName(typeof(ParagraphAttributes), ParagraphAttributes.None);
                 }
-                else
-                {
-                    return s;
-                }
+
+                return s;
             }
 
             set
@@ -205,75 +202,19 @@ namespace TranscriptionCore
             }
         }
 
-
-
         #region serialization
-        public Dictionary<string, string> Elements = new Dictionary<string, string>();
-        internal static readonly XAttribute EmptyAttribute = new XAttribute("empty", "");
 
-        /// <summary>
-        /// V2 deserialization beware of local variable names
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="isStrict"></param>
-        /// <returns></returns>
+        public Dictionary<string, string> Elements = new();
+        internal static readonly XAttribute EmptyAttribute = new("empty", "");
+
         public static TranscriptionParagraph DeserializeV2(XElement e, bool isStrict)
-        {
-            TranscriptionParagraph par = new TranscriptionParagraph();
-            par._internalID = int.Parse(e.Attribute(isStrict ? "speakerid" : "s").Value);
-            par.AttributeString = (e.Attribute(isStrict ? "attributes" : "a") ?? EmptyAttribute).Value;
-
-            par.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            par.Elements.Remove(isStrict ? "begin" : "b");
-            par.Elements.Remove(isStrict ? "end" : "e");
-            par.Elements.Remove(isStrict ? "attributes" : "a");
-            par.Elements.Remove(isStrict ? "speakerid" : "s");
-
-
-            e.Elements(isStrict ? "phrase" : "p").Select(p => (TranscriptionElement)TranscriptionPhrase.DeserializeV2(p, isStrict)).ToList().ForEach(p => par.Add(p)); ;
-
-            if (e.Attribute(isStrict ? "attributes" : "a") != null)
-                par.AttributeString = e.Attribute(isStrict ? "attributes" : "a").Value;
-
-            if (e.Attribute(isStrict ? "begin" : "b") != null)
-            {
-                string val = e.Attribute(isStrict ? "begin" : "b").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                    par.Begin = TimeSpan.FromMilliseconds(ms);
-                else
-                    par.Begin = XmlConvert.ToTimeSpan(val);
-            }
-            else
-            {
-                var ch = par._children.FirstOrDefault();
-                par.Begin = ch?.Begin ?? TimeSpan.Zero;
-            }
-
-            if (e.Attribute(isStrict ? "end" : "e") != null)
-            {
-                string val = e.Attribute(isStrict ? "end" : "e").Value;
-                int ms;
-                if (int.TryParse(val, out ms))
-                    par.End = TimeSpan.FromMilliseconds(ms);
-                else
-                    par.End = XmlConvert.ToTimeSpan(val);
-            }
-            else
-            {
-                var ch = par._children.LastOrDefault();
-                par.End = ch == null ? TimeSpan.Zero : ch.Begin;
-            }
-
-            return par;
-        }
+            => SerializationV2.DeserializeParagraph(e, isStrict);
 
         public TranscriptionParagraph(XElement e) : this()
-        {
-            SerializationV3.DeserializeParagraph(e, this);
-        }
+            => SerializationV3.DeserializeParagraph(e, this);
 
-        public XElement Serialize() => SerializationV3.SerializeParagraph(this);
+        public XElement Serialize()
+            => SerializationV3.SerializeParagraph(this);
 
         #endregion
 
@@ -313,9 +254,7 @@ namespace TranscriptionCore
         public TranscriptionParagraph(params TranscriptionPhrase[] phrases)
             : this(phrases.AsEnumerable())
         {
-
         }
-
 
         public TranscriptionParagraph()
             : base()

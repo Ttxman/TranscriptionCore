@@ -111,7 +111,6 @@ namespace TranscriptionCore
             this.End = aEnd;
         }
 
-
         public override int AbsoluteIndex
         {
             get
@@ -132,8 +131,6 @@ namespace TranscriptionCore
                 return 0;
             }
         }
-
-
 
         public override string InnerText
         {

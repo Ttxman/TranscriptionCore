@@ -94,14 +94,111 @@ namespace TranscriptionCore.Serialization
 
         public static TranscriptionChapter DeserializeChapter(XElement c, bool isStrict)
         {
-            TranscriptionChapter chap = new TranscriptionChapter();
+            var chap = new TranscriptionChapter();
             chap.Name = c.Attribute("name").Value;
             chap.Elements = c.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
             chap.Elements.Remove("name");
-            foreach (var s in c.Elements(isStrict ? "section" : "se").Select(s => (TranscriptionElement)TranscriptionSection.DeserializeV2(s, isStrict)))
-                chap.Add(s);
+            foreach (var s in c.Elements(isStrict ? "section" : "se"))
+            {
+                var sec = DeserializeSection(s, isStrict);
+                chap.Add(sec);
+            }
 
             return chap;
+        }
+
+        public static TranscriptionSection DeserializeSection(XElement e, bool isStrict)
+        {
+            var tsec = new TranscriptionSection();
+            tsec.Name = e.Attribute("name").Value;
+            tsec.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            tsec.Elements.Remove("name");
+            foreach (var p in e.Elements(isStrict ? "paragraph" : "pa"))
+            {
+                var para = DeserializeParagraph(p, isStrict);
+                tsec.Add(para);
+            }
+
+            return tsec;
+        }
+
+        public static TranscriptionParagraph DeserializeParagraph(XElement e, bool isStrict)
+        {
+            var par = new TranscriptionParagraph();
+            par._internalID = int.Parse(e.Attribute(isStrict ? "speakerid" : "s").Value);
+            par.AttributeString = (e.Attribute(isStrict ? "attributes" : "a") ?? TranscriptionParagraph.EmptyAttribute).Value;
+
+            par.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            par.Elements.Remove(isStrict ? "begin" : "b");
+            par.Elements.Remove(isStrict ? "end" : "e");
+            par.Elements.Remove(isStrict ? "attributes" : "a");
+            par.Elements.Remove(isStrict ? "speakerid" : "s");
+
+            foreach (var p in e.Elements(isStrict ? "phrase" : "p"))
+            {
+                var phr = DeserializePhrase(p, isStrict);
+                par.Add(phr);
+            }
+
+            if (e.Attribute(isStrict ? "attributes" : "a") != null)
+                par.AttributeString = e.Attribute(isStrict ? "attributes" : "a").Value;
+
+            if (e.Attribute(isStrict ? "begin" : "b") != null)
+            {
+                string val = e.Attribute(isStrict ? "begin" : "b").Value;
+                par.Begin = int.TryParse(val, out int ms)
+                    ? TimeSpan.FromMilliseconds(ms)
+                    : XmlConvert.ToTimeSpan(val);
+            }
+            else
+            {
+                var ch = par._children.FirstOrDefault();
+                par.Begin = ch?.Begin ?? TimeSpan.Zero;
+            }
+
+            if (e.Attribute(isStrict ? "end" : "e") != null)
+            {
+                string val = e.Attribute(isStrict ? "end" : "e").Value;
+                par.End = int.TryParse(val, out int ms)
+                    ? TimeSpan.FromMilliseconds(ms)
+                    : XmlConvert.ToTimeSpan(val);
+            }
+            else
+            {
+                var ch = par._children.LastOrDefault();
+                par.End = ch?.Begin ?? TimeSpan.Zero;
+            }
+
+            return par;
+        }
+
+        public static TranscriptionPhrase DeserializePhrase(XElement e, bool isStrict)
+        {
+            var phr = new TranscriptionPhrase();
+            phr.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
+            phr.Elements.Remove(isStrict ? "begin" : "b");
+            phr.Elements.Remove(isStrict ? "end" : "e");
+            phr.Elements.Remove(isStrict ? "fon" : "f");
+
+            phr._phonetics = (e.Attribute(isStrict ? "fon" : "f") ?? TranscriptionPhrase.EmptyAttribute).Value;
+            phr._text = e.Value.Trim('\r', '\n');
+            if (e.Attribute(isStrict ? "begin" : "b") != null)
+            {
+                string val = e.Attribute(isStrict ? "begin" : "b").Value;
+                phr.Begin = int.TryParse(val, out int ms)
+                    ? TimeSpan.FromMilliseconds(ms)
+                    : XmlConvert.ToTimeSpan(val);
+            }
+
+            if (e.Attribute(isStrict ? "end" : "e") != null)
+            {
+                string val = e.Attribute(isStrict ? "end" : "e").Value;
+                phr.End = int.TryParse(val, out int ms)
+                    ? TimeSpan.FromMilliseconds(ms)
+                    : XmlConvert.ToTimeSpan(val);
+            }
+
+            return phr;
         }
 
         static Speaker.Sexes SexFromXmlValue(string value)
