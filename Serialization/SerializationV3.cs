@@ -423,11 +423,19 @@ namespace TranscriptionCore.Serialization
                 ? XmlValueToDateTime(dateValue.Value)
                 : default;
 
+            var @for = elm.Attribute("for")?.Value switch
+            {
+                "trsx" => SpeakerAttributeScope.Trsx,
+                "db" => SpeakerAttributeScope.Db,
+                _ => SpeakerAttributeScope.All
+            };
+
             return new SpeakerAttribute(
-                default,
+                id: null,
                 name,
                 elm.Value,
-                date);
+                date,
+                @for);
         }
 
         public static XElement Serialize(SpeakerDbId merge)
@@ -440,6 +448,12 @@ namespace TranscriptionCore.Serialization
             return new XElement("a",
                 new XAttribute("name", attribute.Name),
                 new XAttribute("date", DateTimeToXmlValue(attribute.Date)),
+                attribute.For switch
+                {
+                    SpeakerAttributeScope.Trsx => new XAttribute("for", "trsx"),
+                    SpeakerAttributeScope.Db => new XAttribute("for", "db"),
+                    _ => null
+                },
                 attribute.Value
             );
         }

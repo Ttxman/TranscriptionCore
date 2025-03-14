@@ -12,13 +12,15 @@ namespace TranscriptionCore
         public string Name { get; set; }
         public string Value { get; set; }
         public DateTime Date { get; set; }
+        public SpeakerAttributeScope For { get; set; }
 
-        public SpeakerAttribute(string id, string name, string value, DateTime date = default)
+        public SpeakerAttribute(string id, string name, string value, DateTime date = default, SpeakerAttributeScope @for = SpeakerAttributeScope.All)
         {
             ID = id;
             Name = name;
             Value = value;
             Date = date;
+            For = @for;
         }
 
         public class Comparer : IEqualityComparer<SpeakerAttribute>
@@ -31,5 +33,13 @@ namespace TranscriptionCore
             public int GetHashCode(SpeakerAttribute obj)
                 => obj.Name.GetHashCode() ^ obj.Value.GetHashCode();
         }
+    }
+
+    /// <summary>Defines scope in which this attribute is valid and which the attribute should not leave</summary>
+    public enum SpeakerAttributeScope
+    {
+        All,
+        Trsx,
+        Db
     }
 }

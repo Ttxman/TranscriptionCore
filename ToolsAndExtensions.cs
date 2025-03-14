@@ -105,7 +105,8 @@ namespace TranscriptionCore
                 original.ID,
                 original.Name,
                 original.Value,
-                original.Date);
+                original.Date,
+                original.For);
 
         /// <summary> Read the db id, it will be generated if not set yet </summary>
         public static string GetDbId(this Speaker speaker)
