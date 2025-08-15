@@ -20,7 +20,8 @@ namespace TranscriptionCore.Serialization
             {
                 new XAttribute("version", VersionNumber),
                 new XAttribute("mediauri", transcription.MediaURI ?? ""),
-                new XAttribute("created", transcription.Created)
+                new XAttribute("created", transcription.Created),
+                new XAttribute("language", transcription.Language)
             });
 
             var pars = new XElement("transcription", xmlAttributes,
@@ -139,12 +140,16 @@ namespace TranscriptionCore.Serialization
             if (storage.Elements.TryGetValue("created", out did))
                 storage.Created = XmlConvert.ToDateTime(did, XmlDateTimeSerializationMode.Unspecified);
 
+            if (storage.Elements.TryGetValue("language", out var lng))
+                storage.Language = lng;
+
 
             storage.Elements.Remove("style");
             storage.Elements.Remove("mediauri");
             storage.Elements.Remove("version");
             storage.Elements.Remove("documentid");
             storage.Elements.Remove("created");
+            storage.Elements.Remove("language");
 
             foreach (var c in transcription.Elements("ch"))
             {
@@ -200,7 +205,6 @@ namespace TranscriptionCore.Serialization
                 sp.SetDbId(rem);
                 if (sp.Elements.TryGetValue("dbtype", out rem))
                     sp.DbId.DBtype = XmlValueToDBType(rem);
-
             }
 
             if (sp.Elements.TryGetValue("synchronized", out rem))
@@ -311,7 +315,7 @@ namespace TranscriptionCore.Serialization
             para.AttributeString = (e.Attribute("a") ?? TranscriptionParagraph.EmptyAttribute).Value;
 
             para.Elements = e.Attributes().ToDictionary(a => a.Name.ToString(), a => a.Value);
-            
+
             foreach (var p in e.Elements("p"))
             {
                 var phrase = new TranscriptionPhrase();
@@ -398,7 +402,6 @@ namespace TranscriptionCore.Serialization
                 }
                 else
                     phrase.Begin = XmlConvert.ToTimeSpan(val);
-
             }
 
             if (e.Attribute("e") != null)
@@ -474,7 +477,7 @@ namespace TranscriptionCore.Serialization
             {
                 case "m": return Speaker.Sexes.Male;
                 case "f": return Speaker.Sexes.Female;
-                default: return Speaker. Sexes.X;
+                default: return Speaker.Sexes.X;
             }
         }
 
@@ -514,7 +517,6 @@ namespace TranscriptionCore.Serialization
                     ? TimeZoneInfo.ConvertTimeFromUtc(date, TimeZoneInfo.Local)
                     : DateTime.Now;
             }
-
         }
     }
 }

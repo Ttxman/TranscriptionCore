@@ -110,11 +110,15 @@ namespace TranscriptionCore
         /// </summary>
         public string MediaURI { get; set; }
         /// <summary>
-        /// file containing video data - can be same as audio 
+        /// file containing video data - can be same as audio
         /// </summary>
         public string VideoFileName { get; set; }
 
-        
+
+        /// <summary>
+        /// Transcription language not mandatory
+        /// </summary>
+        public string Language { get; set; }
 
 
         private VirtualTypeList<TranscriptionChapter> _Chapters;
@@ -147,7 +151,7 @@ namespace TranscriptionCore
             DocumentID = Guid.NewGuid().ToString();
             Chapters = new VirtualTypeList<TranscriptionChapter>(this,this._children);
             Created = DateTime.UtcNow;
-            //constructor  
+            //constructor
         }
 
 
@@ -328,7 +332,7 @@ namespace TranscriptionCore
             SerializationSelector.Deserialize(datastream, tr);
             return tr;
         }
-          
+
 
         public XElement Meta = EmptyMeta();
         internal static XElement EmptyMeta()
